@@ -5,11 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.kgapp.kccjapi.data.ScoreEntry
 import com.kgapp.kccjapi.net.Net
 import com.kgapp.kccjapi.repo.ScoreRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -37,7 +38,7 @@ class FuzzyQueryViewModel : ViewModel() {
 
     private var searchJob: Job? = null
 
-    // ✅ 原子标记：跨线程可见，避免“看起来不停止”
+    // ✅ 跨线程安全停止标记
     private val foundStudent = AtomicBoolean(false)
 
     // 线程池相关
@@ -47,13 +48,10 @@ class FuzzyQueryViewModel : ViewModel() {
     fun updateThreadCount(count: Int) {
         if (count < 1 || count > 32) return
 
-        // ✅ 先停掉正在跑的任务，避免 shutdown 旧线程池时还在跑导致异常/卡住
+        // ✅ 改线程数前先停掉当前搜索，避免旧任务跑在旧线程池上
         cancelSearch()
 
-        // 关闭旧线程池
         threadPoolExecutor.shutdown()
-
-        // 创建新线程池
         threadPoolExecutor = Executors.newFixedThreadPool(count)
         customDispatcher = threadPoolExecutor.asCoroutineDispatcher()
 
@@ -83,53 +81,76 @@ class FuzzyQueryViewModel : ViewModel() {
             return
         }
 
-        // 重置标记
+        // reset
         foundStudent.set(false)
 
-        // 取消之前的搜索
+        // cancel previous
         searchJob?.cancel()
 
         searchJob = viewModelScope.launch {
+            // ✅ 结果容器
+            val allResults = mutableListOf<ScoreEntry>()
+
             try {
                 _state.value = FuzzyQueryState(
                     loading = true,
                     threadCount = _state.value.threadCount,
-                    foundCount = 0
+                    foundCount = 0,
+                    progress = 0 to total
                 )
 
-                val allResults = mutableListOf<ScoreEntry>()
                 val tc = _state.value.threadCount
 
-                coroutineScope {
-                    // ✅ 小容量 channel：防堆积、防爆内存
-                    val numberChannel = Channel<Long>(capacity = tc * 2)
+                // ✅ 小容量，避免塞爆（范围小也更快被 workers 吃完）
+                val numberChannel = Channel<Long>(capacity = tc * 2)
 
-                    // ✅ workers：并发请求
+                supervisorScope {
+                    // workers
                     val workers = List(tc) {
                         launch(customDispatcher) {
                             while (isActive) {
                                 val num = numberChannel.receiveCatching().getOrNull() ?: break
                                 if (foundStudent.get()) break
 
-                                val result = repo.exactQuery(name, num.toString())
-                                result.onSuccess { list ->
-                                    if (list.isNotEmpty()) {
-                                        // ✅ 第一个命中的 worker 负责“占坑+停机”
-                                        if (foundStudent.compareAndSet(false, true)) {
-                                            allResults.addAll(list)
-                                            _state.update { st ->
-                                                st.copy(foundCount = allResults.size)
-                                            }
-                                            // ✅ 直接取消整个 scope：所有 worker + producer 立刻停
-                                            this@coroutineScope.cancel("Found result, stop all")
+                                // ✅ 单次请求失败不要炸全局
+                                val list: List<ScoreEntry>? = try {
+                                    val r = repo.exactQuery(name, num.toString())
+                                    r.getOrNull()
+                                } catch (_: Throwable) {
+                                    null
+                                }
+
+                                if (!list.isNullOrEmpty()) {
+                                    // ✅ 第一个命中的 worker 负责“展示 + 停机”
+                                    if (foundStudent.compareAndSet(false, true)) {
+
+                                        allResults.addAll(list)
+
+                                        // 去重（避免重复）
+                                        val distinctResults = allResults.distinctBy { entry ->
+                                            "${entry.studentNum}-${entry.examName}-${entry.course}-${entry.score}"
                                         }
+
+                                        // ✅ 立刻把结果推给 UI（不要等 join 完）
+                                        _state.update { st ->
+                                            st.copy(
+                                                loading = false,
+                                                error = null,
+                                                data = distinctResults,
+                                                foundCount = distinctResults.size
+                                            )
+                                        }
+
+                                        // ✅ 立刻停止：关闭 channel + cancel 作用域
+                                        numberChannel.close()
+                                        this@supervisorScope.cancel(CancellationException("FOUND_RESULT"))
                                     }
                                 }
                             }
                         }
                     }
 
-                    // ✅ producer：逐个送号，更新进度
+                    // producer（在当前协程上跑即可）
                     launch {
                         var current = 0
                         for (num in start..end) {
@@ -141,9 +162,9 @@ class FuzzyQueryViewModel : ViewModel() {
 
                             numberChannel.send(num)
 
-                            // ✅ 可选：轻微限速（防止服务器炸）
-                            // 你可以改成 delay(5) / delay(10)
-                            delay(1)
+                            // ⚡范围小想更快：可以改成 0
+                            // 若怕服务器压力：改成 delay(5) 或 delay(10)
+                            // delay(1)
                         }
                         numberChannel.close()
                     }
@@ -151,19 +172,24 @@ class FuzzyQueryViewModel : ViewModel() {
                     workers.forEach { it.join() }
                 }
 
-                // 去重（更稳一点，避免重复）
-                val distinctResults = allResults.distinctBy { entry ->
-                    "${entry.studentNum}-${entry.examName}-${entry.course}-${entry.score}"
+                // 如果跑完没找到
+                if (!foundStudent.get()) {
+                    _state.update {
+                        it.copy(
+                            loading = false,
+                            error = "未找到匹配结果",
+                            data = emptyList(),
+                            foundCount = 0
+                        )
+                    }
                 }
 
-                _state.update {
-                    it.copy(
-                        loading = false,
-                        error = if (distinctResults.isEmpty()) "未找到匹配结果" else null,
-                        data = distinctResults,
-                        foundCount = distinctResults.size,
-                        progress = if (distinctResults.isEmpty()) it.progress else it.progress
-                    )
+            } catch (e: CancellationException) {
+                // ✅ FOUND_RESULT / 用户取消 都会走到这里：不要当失败
+                if (!foundStudent.get()) {
+                    // 用户取消时，foundStudent 会在 cancelSearch() 里置 true，
+                    // 这里如果不是“找到结果”导致的取消，就只关 loading
+                    _state.update { it.copy(loading = false) }
                 }
             } catch (e: Exception) {
                 _state.update {
@@ -202,7 +228,7 @@ class FuzzyQueryViewModel : ViewModel() {
 
     fun cancelSearch() {
         searchJob?.cancel()
-        foundStudent.set(true)
+        foundStudent.set(true) // 让 workers 自己停
         _state.update { it.copy(loading = false) }
     }
 
