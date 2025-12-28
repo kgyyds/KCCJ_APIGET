@@ -83,14 +83,16 @@ fun FuzzyQueryScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { 
-                        Text("模糊查询 - 并发模式", 
-                              color = textPrimary,
-                              fontFamily = FontFamily.Monospace) 
+                    title = {
+                        Text(
+                            "模糊查询 - 并发模式",
+                            color = textPrimary,
+                            fontFamily = FontFamily.Monospace
+                        )
                     },
                     navigationIcon = {
-                        IconButton(onClick = onBack) { 
-                            Text("←", color = textPrimary) 
+                        IconButton(onClick = onBack) {
+                            Text("←", color = textPrimary)
                         }
                     },
                     colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
@@ -100,7 +102,9 @@ fun FuzzyQueryScreen(
             },
             containerColor = bg
         ) { padding ->
-            Column(
+
+            // ✅ 整页可滚动：所有内容都放在 LazyColumn 里
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
@@ -109,215 +113,7 @@ fun FuzzyQueryScreen(
             ) {
 
                 // 线程设置面板
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = panel),
-                    border = BorderStroke(1.dp, border),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "并发线程数",
-                                color = glow,
-                                fontFamily = FontFamily.Monospace,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = "${threadCount}线程",
-                                color = textPrimary,
-                                fontFamily = FontFamily.Monospace,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        
-                        Slider(
-                            value = threadCount.toFloat(),
-                            onValueChange = { 
-                                threadCount = it.toInt()
-                                viewModel.updateThreadCount(threadCount)
-                            },
-                            valueRange = 1f..32f,
-                            steps = 31,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = androidx.compose.material3.SliderDefaults.colors(
-                                thumbColor = glow,
-                                activeTrackColor = glow,
-                                inactiveTrackColor = border
-                            )
-                        )
-                        
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("1", color = textMuted, fontFamily = FontFamily.Monospace)
-                            Text("推荐: 4-8", color = warning, fontFamily = FontFamily.Monospace)
-                            Text("32", color = textMuted, fontFamily = FontFamily.Monospace)
-                        }
-                        
-                        Text(
-                            text = "提示：更多线程 = 更快查询，但会增加服务器压力",
-                            color = textMuted,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-
-                // Header panel
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = panel),
-                    border = BorderStroke(1.dp, border),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(
-                            text = "> 并发查询模式 - 找到结果即停止",
-                            color = glow,
-                            fontFamily = FontFamily.Monospace,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "range 示例：4112440401-4112440410",
-                            color = textMuted,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-
-                // Input panel
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = panel),
-                    border = BorderStroke(1.dp, border),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = name,
-                            onValueChange = { name = it },
-                            label = { Text("student_name", fontFamily = FontFamily.Monospace) },
-                            placeholder = { Text("例如：张三", color = textMuted) },
-                            singleLine = true,
-                            isError = touched && name.isBlank(),
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = glow,
-                                unfocusedBorderColor = border,
-                                focusedLabelColor = glow,
-                                unfocusedLabelColor = textMuted,
-                                cursorColor = glow,
-                                focusedTextColor = textPrimary,
-                                unfocusedTextColor = textPrimary
-                            )
-                        )
-
-                        OutlinedTextField(
-                            value = numRange,
-                            onValueChange = { numRange = it },
-                            label = { Text("student_num_range", fontFamily = FontFamily.Monospace) },
-                            placeholder = { Text("例如：4112440401-4112440410", color = textMuted) },
-                            singleLine = true,
-                            isError = touched && numRange.isBlank(),
-                            supportingText = {
-                                if (numRange.isNotBlank() && numRange.split("-").size != 2) {
-                                    Text("format: start-end", color = textMuted, fontFamily = FontFamily.Monospace)
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = glow,
-                                unfocusedBorderColor = border,
-                                focusedLabelColor = glow,
-                                unfocusedLabelColor = textMuted,
-                                cursorColor = glow,
-                                focusedTextColor = textPrimary,
-                                unfocusedTextColor = textPrimary
-                            )
-                        )
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Button(
-                                onClick = {
-                                    touched = true
-                                    viewModel.search(name, numRange)
-                                },
-                                enabled = !state.loading && name.isNotBlank() && numRange.isNotBlank(),
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = glow,
-                                    contentColor = Color(0xFF04110A)
-                                )
-                            ) {
-                                if (state.loading) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(16.dp),
-                                            strokeWidth = 2.dp,
-                                            color = Color(0xFF04110A)
-                                        )
-                                        Spacer(Modifier.padding(horizontal = 6.dp))
-                                        Text("RUNNING", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-                                    }
-                                } else {
-                                    Text("RUN", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-                                }
-                            }
-
-                            if (state.loading) {
-                                Button(
-                                    onClick = {
-                                        viewModel.cancelSearch()
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFFFF6B6B),
-                                        contentColor = Color.White
-                                    )
-                                ) {
-                                    Text("STOP", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-                                }
-                            } else {
-                                Button(
-                                    onClick = {
-                                        name = ""
-                                        numRange = ""
-                                        touched = false
-                                        viewModel.clearData()
-                                    },
-                                    enabled = !state.loading,
-                                    modifier = Modifier.weight(1f),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF111A2B),
-                                        contentColor = textPrimary
-                                    )
-                                ) {
-                                    Text("CLEAR", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Progress panel
-                state.progress?.let { (current, total) ->
-                    val p = if (total > 0) current.toFloat() / total.toFloat() else 0f
-
+                item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
@@ -326,9 +122,7 @@ fun FuzzyQueryScreen(
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
+                            modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Row(
@@ -336,63 +130,48 @@ fun FuzzyQueryScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp), 
-                                        color = glow, 
-                                        strokeWidth = 2.dp
-                                    )
-                                    Spacer(Modifier.padding(horizontal = 8.dp))
-                                    Column {
-                                        Text(
-                                            text = "并发扫描中…",
-                                            color = textPrimary,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontFamily = FontFamily.Monospace
-                                        )
-                                        Text(
-                                            text = "使用 ${state.threadCount} 线程",
-                                            color = textMuted,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontFamily = FontFamily.Monospace
-                                        )
-                                    }
-                                }
-                                
-                                Column(horizontalAlignment = Alignment.End) {
-                                    Text(
-                                        text = "${state.foundCount} hits",
-                                        color = glow,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    if (state.foundCount > 0) {
-                                        Text(
-                                            text = "已找到，正在停止...",
-                                            color = warning,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontFamily = FontFamily.Monospace
-                                        )
-                                    }
-                                }
+                                Text(
+                                    text = "并发线程数",
+                                    color = glow,
+                                    fontFamily = FontFamily.Monospace,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = "${threadCount}线程",
+                                    color = textPrimary,
+                                    fontFamily = FontFamily.Monospace,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Slider(
+                                value = threadCount.toFloat(),
+                                onValueChange = {
+                                    threadCount = it.toInt()
+                                    viewModel.updateThreadCount(threadCount)
+                                },
+                                valueRange = 1f..32f,
+                                steps = 31,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = androidx.compose.material3.SliderDefaults.colors(
+                                    thumbColor = glow,
+                                    activeTrackColor = glow,
+                                    inactiveTrackColor = border
+                                )
+                            )
+
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("1", color = textMuted, fontFamily = FontFamily.Monospace)
+                                Text("推荐: 4-8", color = warning, fontFamily = FontFamily.Monospace)
+                                Text("32", color = textMuted, fontFamily = FontFamily.Monospace)
                             }
 
                             Text(
-                                text = "进度: $current / $total (${(p * 100).toInt()}%)",
-                                color = textMuted,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontFamily = FontFamily.Monospace
-                            )
-
-                            LinearProgressIndicator(
-                                progress = { p },
-                                modifier = Modifier.fillMaxWidth(),
-                                color = if (state.foundCount > 0) warning else glow
-                            )
-                            
-                            Text(
-                                text = "说明：找到结果后会自动停止所有线程",
+                                text = "提示：更多线程 = 更快查询，但会增加服务器压力",
                                 color = textMuted,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontFamily = FontFamily.Monospace
@@ -401,96 +180,336 @@ fun FuzzyQueryScreen(
                     }
                 }
 
-                // Results
-                if (state.data.isEmpty() && !state.loading && touched) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text("⌁", color = glow, style = MaterialTheme.typography.displaySmall, fontFamily = FontFamily.Monospace)
-                            Text(
-                                text = "No data found.",
-                                color = textMuted,
-                                fontFamily = FontFamily.Monospace
-                            )
-                            Text(
-                                text = "请检查姓名和学号范围",
-                                color = textMuted,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
-                } else if (state.data.isNotEmpty()) {
+                // Header panel
+                item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = panel),
-                        border = BorderStroke(1.dp, glow),
+                        border = BorderStroke(1.dp, border),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = "查询结果",
-                                    color = glow,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "共 ${state.data.size} 条记录",
-                                    color = textPrimary,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
                             Text(
-                                text = "并发扫描完成，已自动停止所有查询线程",
+                                text = "> 并发查询模式 - 找到结果即停止",
+                                color = glow,
+                                fontFamily = FontFamily.Monospace,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "range 示例：4112440401-4112440410",
                                 color = textMuted,
                                 style = MaterialTheme.typography.bodySmall,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.padding(top = 4.dp)
+                                fontFamily = FontFamily.Monospace
                             )
                         }
                     }
-                    
-                    val groupedByStudent = state.data.groupBy {
-                        "${it.studentName ?: "未知"}-${it.studentNum ?: "未知"}"
-                    }
+                }
 
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                // Input panel
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = panel),
+                        border = BorderStroke(1.dp, border),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
-                        groupedByStudent.forEach { (key, entries) ->
-                            item(key = "student:$key") {
-                                StudentScoreCardHacker(
-                                    entries = entries,
-                                    panel = panel,
-                                    border = border,
-                                    glow = glow,
-                                    textPrimary = textPrimary,
-                                    textMuted = textMuted
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = name,
+                                onValueChange = { name = it },
+                                label = { Text("student_name", fontFamily = FontFamily.Monospace) },
+                                placeholder = { Text("例如：张三", color = textMuted) },
+                                singleLine = true,
+                                isError = touched && name.isBlank(),
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = glow,
+                                    unfocusedBorderColor = border,
+                                    focusedLabelColor = glow,
+                                    unfocusedLabelColor = textMuted,
+                                    cursorColor = glow,
+                                    focusedTextColor = textPrimary,
+                                    unfocusedTextColor = textPrimary
+                                )
+                            )
+
+                            OutlinedTextField(
+                                value = numRange,
+                                onValueChange = { numRange = it },
+                                label = { Text("student_num_range", fontFamily = FontFamily.Monospace) },
+                                placeholder = { Text("例如：4112440401-4112440410", color = textMuted) },
+                                singleLine = true,
+                                isError = touched && numRange.isBlank(),
+                                supportingText = {
+                                    if (numRange.isNotBlank() && numRange.split("-").size != 2) {
+                                        Text("format: start-end", color = textMuted, fontFamily = FontFamily.Monospace)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = glow,
+                                    unfocusedBorderColor = border,
+                                    focusedLabelColor = glow,
+                                    unfocusedLabelColor = textMuted,
+                                    cursorColor = glow,
+                                    focusedTextColor = textPrimary,
+                                    unfocusedTextColor = textPrimary
+                                )
+                            )
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Button(
+                                    onClick = {
+                                        touched = true
+                                        viewModel.search(name, numRange)
+                                    },
+                                    enabled = !state.loading && name.isNotBlank() && numRange.isNotBlank(),
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = glow,
+                                        contentColor = Color(0xFF04110A)
+                                    )
+                                ) {
+                                    if (state.loading) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                strokeWidth = 2.dp,
+                                                color = Color(0xFF04110A)
+                                            )
+                                            Spacer(Modifier.padding(horizontal = 6.dp))
+                                            Text("RUNNING", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                        }
+                                    } else {
+                                        Text("RUN", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                if (state.loading) {
+                                    Button(
+                                        onClick = { viewModel.cancelSearch() },
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFFFF6B6B),
+                                            contentColor = Color.White
+                                        )
+                                    ) {
+                                        Text("STOP", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                    }
+                                } else {
+                                    Button(
+                                        onClick = {
+                                            name = ""
+                                            numRange = ""
+                                            touched = false
+                                            viewModel.clearData()
+                                        },
+                                        enabled = !state.loading,
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF111A2B),
+                                            contentColor = textPrimary
+                                        )
+                                    ) {
+                                        Text("CLEAR", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Progress panel
+                item {
+                    state.progress?.let { (current, total) ->
+                        val p = if (total > 0) current.toFloat() / total.toFloat() else 0f
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(containerColor = panel),
+                            border = BorderStroke(1.dp, border),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            color = glow,
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(Modifier.padding(horizontal = 8.dp))
+                                        Column {
+                                            Text(
+                                                text = "并发扫描中…",
+                                                color = textPrimary,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                            Text(
+                                                text = "使用 ${state.threadCount} 线程",
+                                                color = textMuted,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+                                    }
+
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text(
+                                            text = "${state.foundCount} hits",
+                                            color = glow,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        if (state.foundCount > 0) {
+                                            Text(
+                                                text = "已找到，正在停止...",
+                                                color = Color(0xFFFFB74D),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Text(
+                                    text = "进度: $current / $total (${(p * 100).toInt()}%)",
+                                    color = textMuted,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace
+                                )
+
+                                LinearProgressIndicator(
+                                    progress = { p },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = if (state.foundCount > 0) warning else glow
+                                )
+
+                                Text(
+                                    text = "说明：找到结果后会自动停止所有查询线程",
+                                    color = textMuted,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace
                                 )
                             }
                         }
                     }
                 }
+
+                // Empty hint
+                if (state.data.isEmpty() && !state.loading && touched) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(containerColor = panel),
+                            border = BorderStroke(1.dp, border),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text("⌁", color = glow, style = MaterialTheme.typography.displaySmall, fontFamily = FontFamily.Monospace)
+                                Text("No data found.", color = textMuted, fontFamily = FontFamily.Monospace)
+                                Text("请检查姓名和学号范围", color = textMuted, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                            }
+                        }
+                    }
+                }
+
+                // Results header
+                if (state.data.isNotEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(containerColor = panel),
+                            border = BorderStroke(1.dp, glow),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = "查询结果",
+                                        color = glow,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "共 ${state.data.size} 条记录",
+                                        color = textPrimary,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                                Text(
+                                    text = "扫描完成 ✅（已自动停止所有查询）",
+                                    color = textMuted,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    val groupedByStudent = state.data.groupBy {
+                        "${it.studentName ?: "未知"}-${it.studentNum ?: "未知"}"
+                    }
+
+                    // ✅ 结果作为 LazyColumn 的 items：自然就是全屏滚动
+                    items(
+                        items = groupedByStudent.entries.toList(),
+                        key = { it.key }
+                    ) { (_, entries) ->
+                        StudentScoreCardHacker(
+                            entries = entries,
+                            panel = panel,
+                            border = border,
+                            glow = glow,
+                            textPrimary = textPrimary,
+                            textMuted = textMuted
+                        )
+                    }
+                }
+
+                // bottom spacing
+                item { Spacer(modifier = Modifier.height(12.dp)) }
             }
         }
     }
 }
 
-// StudentScoreCardHacker 和 ScoreItemRowHacker 函数保持不变（使用你原来的版本）
+// ===== StudentScoreCardHacker / ScoreItemRowHacker 保持你原风格 =====
+
 @Composable
 private fun StudentScoreCardHacker(
     entries: List<ScoreEntry>,
@@ -510,8 +529,6 @@ private fun StudentScoreCardHacker(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-
-            // Student header
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("👤", style = MaterialTheme.typography.bodyLarge)
                 Spacer(modifier = Modifier.size(8.dp))
