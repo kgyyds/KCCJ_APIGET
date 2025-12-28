@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kgapp.kccjapi.data.ScoreEntry
 import com.kgapp.kccjapi.vm.FuzzyQueryViewModel
+import com.kgapp.kccjapi.vm.WorkerStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,7 +104,7 @@ fun FuzzyQueryScreen(
             containerColor = bg
         ) { padding ->
 
-            // ✅ 整页可滚动：所有内容都放在 LazyColumn 里
+            // ✅ 整页可滚动
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -112,7 +113,7 @@ fun FuzzyQueryScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
 
-                // 线程设置面板
+                // ===== 线程数设置 =====
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -121,26 +122,17 @@ fun FuzzyQueryScreen(
                         border = BorderStroke(1.dp, border),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
+                                Text("并发线程数", color = glow, fontFamily = FontFamily.Monospace)
                                 Text(
-                                    text = "并发线程数",
-                                    color = glow,
-                                    fontFamily = FontFamily.Monospace,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Text(
-                                    text = "${threadCount}线程",
+                                    "${threadCount}线程",
                                     color = textPrimary,
                                     fontFamily = FontFamily.Monospace,
-                                    style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -171,7 +163,7 @@ fun FuzzyQueryScreen(
                             }
 
                             Text(
-                                text = "提示：更多线程 = 更快查询，但会增加服务器压力",
+                                "提示：更多线程 = 更快查询，但会增加服务器压力",
                                 color = textMuted,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontFamily = FontFamily.Monospace
@@ -180,7 +172,7 @@ fun FuzzyQueryScreen(
                     }
                 }
 
-                // Header panel
+                // ===== 输入区 =====
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -189,15 +181,11 @@ fun FuzzyQueryScreen(
                         border = BorderStroke(1.dp, border),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
                                 text = "> 并发查询模式 - 找到结果即停止",
                                 color = glow,
                                 fontFamily = FontFamily.Monospace,
-                                style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
@@ -206,23 +194,7 @@ fun FuzzyQueryScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 fontFamily = FontFamily.Monospace
                             )
-                        }
-                    }
-                }
 
-                // Input panel
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = panel),
-                        border = BorderStroke(1.dp, border),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
                             OutlinedTextField(
                                 value = name,
                                 onValueChange = { name = it },
@@ -328,7 +300,7 @@ fun FuzzyQueryScreen(
                     }
                 }
 
-                // Progress panel
+                // ===== 进度条 =====
                 item {
                     state.progress?.let { (current, total) ->
                         val p = if (total > 0) current.toFloat() / total.toFloat() else 0f
@@ -341,9 +313,7 @@ fun FuzzyQueryScreen(
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
+                                modifier = Modifier.padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Row(
@@ -359,44 +329,21 @@ fun FuzzyQueryScreen(
                                         )
                                         Spacer(Modifier.padding(horizontal = 8.dp))
                                         Column {
-                                            Text(
-                                                text = "并发扫描中…",
-                                                color = textPrimary,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontFamily = FontFamily.Monospace
-                                            )
-                                            Text(
-                                                text = "使用 ${state.threadCount} 线程",
-                                                color = textMuted,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                fontFamily = FontFamily.Monospace
-                                            )
+                                            Text("并发扫描中…", color = textPrimary, fontFamily = FontFamily.Monospace)
+                                            Text("使用 ${state.threadCount} 线程", color = textMuted, fontFamily = FontFamily.Monospace)
                                         }
                                     }
-
-                                    Column(horizontalAlignment = Alignment.End) {
-                                        Text(
-                                            text = "${state.foundCount} hits",
-                                            color = glow,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontFamily = FontFamily.Monospace,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        if (state.foundCount > 0) {
-                                            Text(
-                                                text = "已找到，正在停止...",
-                                                color = Color(0xFFFFB74D),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                fontFamily = FontFamily.Monospace
-                                            )
-                                        }
-                                    }
+                                    Text(
+                                        text = "${state.foundCount} hits",
+                                        color = glow,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
 
                                 Text(
                                     text = "进度: $current / $total (${(p * 100).toInt()}%)",
                                     color = textMuted,
-                                    style = MaterialTheme.typography.bodySmall,
                                     fontFamily = FontFamily.Monospace
                                 )
 
@@ -417,7 +364,107 @@ fun FuzzyQueryScreen(
                     }
                 }
 
-                // Empty hint
+                // ===== 线程状态面板 =====
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = panel),
+                        border = BorderStroke(1.dp, border),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                text = "THREAD STATUS",
+                                color = glow,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (state.workers.isEmpty()) {
+                                Text("暂无线程", color = textMuted, fontFamily = FontFamily.Monospace)
+                            } else {
+                                state.workers.forEach { w ->
+                                    val c = when (w.status) {
+                                        WorkerStatus.RUNNING -> glow
+                                        WorkerStatus.SUCCESS -> Color(0xFF7DD3FC)
+                                        WorkerStatus.FAIL -> Color(0xFFFF6B6B)
+                                        WorkerStatus.STOPPED -> textMuted
+                                        WorkerStatus.IDLE -> textMuted
+                                    }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "T#${w.id}",
+                                            color = textPrimary,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Text(
+                                            text = w.status.name,
+                                            color = c,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Text(
+                                        text = "num=${w.currentNum ?: "-"} | ${w.lastMessage}",
+                                        color = textMuted,
+                                        fontFamily = FontFamily.Monospace,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ===== 实时日志面板 =====
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = panel),
+                        border = BorderStroke(1.dp, border),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                text = "LIVE LOG (last ${state.logs.size})",
+                                color = glow,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            if (state.logs.isEmpty()) {
+                                Text("暂无日志", color = textMuted, fontFamily = FontFamily.Monospace)
+                            } else {
+                                // 小建议：日志太多时，这里仍然 OK，因为我们限制了 maxLogs=200
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    state.logs.takeLast(200).forEach { line ->
+                                        val lc = when (line.level) {
+                                            "OK" -> glow
+                                            "ERR" -> Color(0xFFFF6B6B)
+                                            else -> textMuted
+                                        }
+                                        val who = if (line.workerId >= 0) "T#${line.workerId}" else "SYS"
+                                        Text(
+                                            text = "[${line.ts}] [$who] ${line.level}: ${line.message}",
+                                            color = lc,
+                                            fontFamily = FontFamily.Monospace,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ===== 空提示 =====
                 if (state.data.isEmpty() && !state.loading && touched) {
                     item {
                         Card(
@@ -440,7 +487,7 @@ fun FuzzyQueryScreen(
                     }
                 }
 
-                // Results header
+                // ===== 结果区 =====
                 if (state.data.isNotEmpty()) {
                     item {
                         Card(
@@ -485,7 +532,6 @@ fun FuzzyQueryScreen(
                         "${it.studentName ?: "未知"}-${it.studentNum ?: "未知"}"
                     }
 
-                    // ✅ 结果作为 LazyColumn 的 items：自然就是全屏滚动
                     items(
                         items = groupedByStudent.entries.toList(),
                         key = { it.key }
@@ -501,14 +547,13 @@ fun FuzzyQueryScreen(
                     }
                 }
 
-                // bottom spacing
-                item { Spacer(modifier = Modifier.height(12.dp)) }
+                item { Spacer(modifier = Modifier.height(16.dp)) }
             }
         }
     }
 }
 
-// ===== StudentScoreCardHacker / ScoreItemRowHacker 保持你原风格 =====
+// ===== 原有结果卡片保持不变 =====
 
 @Composable
 private fun StudentScoreCardHacker(
