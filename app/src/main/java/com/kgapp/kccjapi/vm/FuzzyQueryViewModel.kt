@@ -3,7 +3,8 @@ package com.kgapp.kccjapi.vm
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kgapp.kccjapi.data.ScoreEntry
-import kotlinx.coroutines.delay
+import com.kgapp.kccjapi.net.Net
+import com.kgapp.kccjapi.repo.ScoreRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,29 +18,36 @@ data class FuzzyQueryState(
     val progress: Pair<Int, Int>? = null // (当前进度, 总数)
 )
 
-class FuzzyQueryViewModel : ViewModel() { // 移除构造函数参数
+class FuzzyQueryViewModel : ViewModel() {
+    private val repo = ScoreRepository(Net.api)  // 添加Repository
 
     private val _state = MutableStateFlow(FuzzyQueryState())
     val state: StateFlow<FuzzyQueryState> = _state.asStateFlow()
 
     fun search(name: String, numRange: String) {
         if (name.isBlank()) {
-            _state.update { it.copy(error = "请输入学生姓名") }
+            _state.value = FuzzyQueryState(error = "请输入学生姓名")
             return
         }
 
         // 解析学号范围
         val range = parseNumRange(numRange)
         if (range == null && numRange.isNotBlank()) {
-            _state.update { it.copy(error = "学号范围格式错误，请使用如 42000-42999 的格式") }
+            _state.value = FuzzyQueryState(error = "学号范围格式错误，请使用如 42000-42999 的格式")
             return
         }
 
         viewModelScope.launch {
             try {
-                _state.update { it.copy(loading = true, data = emptyList(), progress = null) }
+                _state.value = FuzzyQueryState(
+                    loading = true,
+                    error = null,
+                    data = emptyList(),
+                    progress = null
+                )
                 
-                // 这里先模拟查询，你可以后续替换为实际API调用
+                val allResults = mutableListOf<ScoreEntry>()
+                
                 if (range != null) {
                     // 遍历学号范围
                     val (start, end) = range
@@ -49,81 +57,72 @@ class FuzzyQueryViewModel : ViewModel() { // 移除构造函数参数
                         // 更新进度
                         _state.update { it.copy(progress = Pair(index + 1, total)) }
                         
-                        // 模拟API调用延迟
-                        delay(50)
+                        // 实际API调用
+                        val result = repo.exactQuery(name, num.toString())
+                        result.onSuccess { list ->
+                            // 只添加有结果的记录
+                            if (list.isNotEmpty()) {
+                                allResults.addAll(list)
+                            }
+                        }.onFailure { e ->
+                            // 单个查询失败不中断整体查询，只是跳过
+                            // 可以记录日志
+                        }
                         
-                        // 这里可以添加实际API调用
-                        // val result = repository.exactQuery(name, num.toString())
+                        // 添加延迟避免请求过快
+                        kotlinx.coroutines.delay(50)
+                    }
+                } else {
+                    // 如果没有学号范围，只按姓名查询
+                    val result = repo.exactQuery(name, "")
+                    result.onSuccess { list ->
+                        allResults.addAll(list)
+                    }.onFailure { e ->
+                        throw e // 单个查询失败时抛出异常
                     }
                 }
                 
-                // 模拟查询结果
-                delay(1000)
-                
-                // 模拟一些测试数据
-                val mockData = if (range != null && name.contains("测试")) {
-                    listOf(
-                        ScoreEntry(
-                            studentName = name,
-                            studentNum = "${range.first}",
-                            examName = "期末考试",
-                            course = "数学",
-                            score = "85",
-                            searchTime = "2024-01-15 10:30"
-                        ),
-                        ScoreEntry(
-                            studentName = name,
-                            studentNum = "${range.first}",
-                            examName = "期末考试",
-                            course = "语文",
-                            score = "92",
-                            searchTime = "2024-01-15 10:30"
-                        )
-                    )
-                } else {
-                    emptyList()
+                // 去重：学号-考试名-课程名
+                val distinctResults = allResults.distinctBy { entry -> 
+                    "${entry.studentNum}-${entry.examName}-${entry.course}"
                 }
                 
-                _state.update { 
-                    it.copy(
-                        loading = false,
-                        data = mockData,
-                        progress = null,
-                        error = if (mockData.isEmpty()) "未找到匹配结果" else null
-                    )
-                }
+                _state.value = FuzzyQueryState(
+                    loading = false,
+                    error = if (distinctResults.isEmpty()) "未找到匹配结果" else null,
+                    data = distinctResults,
+                    progress = null
+                )
                 
             } catch (e: Exception) {
-                _state.update {
-                    it.copy(
-                        loading = false,
-                        error = "查询失败: ${e.message}",
-                        progress = null
-                    )
-                }
+                _state.value = FuzzyQueryState(
+                    loading = false,
+                    error = "查询失败: ${e.message ?: e.javaClass.simpleName}",
+                    data = emptyList(),
+                    progress = null
+                )
             }
         }
     }
 
     private fun parseNumRange(rangeStr: String): Pair<Int, Int>? {
-    if (rangeStr.isBlank()) return null
-    
-    val parts = rangeStr.split("-")
-    if (parts.size != 2) return null
-    
-    return try {
-        val start = parts[0].trim().toInt()
-        val end = parts[1].trim().toInt()
-        // 移除不必要的大小限制，只检查start <= end
-        if (start <= end) {
-            Pair(start, end)
-        } else {
+        if (rangeStr.isBlank()) return null
+        
+        val parts = rangeStr.split("-")
+        if (parts.size != 2) return null
+        
+        return try {
+            val start = parts[0].trim().toInt()
+            val end = parts[1].trim().toInt()
+            if (start <= end) {
+                Pair(start, end)
+            } else {
+                null
+            }
+        } catch (e: NumberFormatException) {
             null
         }
-    } catch (e: NumberFormatException) {
-        null
     }
-}
 
     fun clearError() {
         _state.update { it.copy(error = null) }
