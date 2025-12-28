@@ -1,5 +1,7 @@
 package com.kgapp.kccjapi.ui.screen
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,16 +14,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -32,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -42,234 +50,278 @@ import com.kgapp.kccjapi.vm.FuzzyQueryViewModel
 @Composable
 fun FuzzyQueryScreen(
     onBack: () -> Unit,
-    // 直接使用viewModel()，去掉hilt相关
     viewModel: FuzzyQueryViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
 
+    // Hacker-ish palette (same style as ExactQueryScreen)
+    val bg = androidx.compose.ui.graphics.Color(0xFF070A0F)
+    val panel = androidx.compose.ui.graphics.Color(0xFF0B1220)
+    val border = androidx.compose.ui.graphics.Color(0xFF1B2A41)
+    val glow = androidx.compose.ui.graphics.Color(0xFF00FF88)
+    val textPrimary = androidx.compose.ui.graphics.Color(0xFFE6EEF8)
+    val textMuted = androidx.compose.ui.graphics.Color(0xFF8CA0B3)
+
     var name by rememberSaveable { mutableStateOf("") }
     var numRange by rememberSaveable { mutableStateOf("") }
+    var touched by rememberSaveable { mutableStateOf(false) }
 
     if (state.error != null) {
         AlertDialog(
             onDismissRequest = { viewModel.clearError() },
-            confirmButton = {
-                Button(onClick = { viewModel.clearError() }) { Text("确定") }
-            },
+            confirmButton = { Button(onClick = { viewModel.clearError() }) { Text("确定") } },
             title = { Text("提示") },
             text = { Text(state.error ?: "") }
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("模糊查询") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Text("←") }
-                }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // 查询条件输入区
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "查询条件",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("学生姓名 *") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        placeholder = { Text("请输入学生姓名") },
-                        isError = name.isBlank()
-                    )
+    Surface(modifier = Modifier.fillMaxSize(), color = bg) {
+        Scaffold(
+            containerColor = bg,
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            "FUZZY QUERY",
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) { Text("←", color = glow) }
+                    }
+                )
+            }
+        ) { padding ->
 
-                    OutlinedTextField(
-                        value = numRange,
-                        onValueChange = { numRange = it },
-                        label = { Text("学号范围 (可选)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        placeholder = { Text("格式：42000-42999") },
-                        supportingText = {
-                            if (numRange.isNotBlank() && numRange.split("-").size != 2) {
-                                Text("格式错误，应为 起始-结束")
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+
+                // Header panel
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = panel),
+                    border = BorderStroke(1.dp, border),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = "> 输入姓名 + 学号范围进行匹配",
+                            color = glow,
+                            fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "range 示例：4112440401-4112440410",
+                            color = textMuted,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                // Input panel
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = panel),
+                    border = BorderStroke(1.dp, border),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            label = { Text("student_name", fontFamily = FontFamily.Monospace) },
+                            placeholder = { Text("例如：张三", color = textMuted) },
+                            singleLine = true,
+                            isError = touched && name.isBlank(),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = glow,
+                                unfocusedBorderColor = border,
+                                focusedLabelColor = glow,
+                                unfocusedLabelColor = textMuted,
+                                cursorColor = glow,
+                                focusedTextColor = textPrimary,
+                                unfocusedTextColor = textPrimary
+                            )
+                        )
+
+                        OutlinedTextField(
+                            value = numRange,
+                            onValueChange = { numRange = it },
+                            label = { Text("student_num_range", fontFamily = FontFamily.Monospace) },
+                            placeholder = { Text("例如：4112440401-4112440410", color = textMuted) },
+                            singleLine = true,
+                            isError = touched && numRange.isBlank(),
+                            supportingText = {
+                                if (numRange.isNotBlank() && numRange.split("-").size != 2) {
+                                    Text("format: start-end", color = textMuted, fontFamily = FontFamily.Monospace)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = glow,
+                                unfocusedBorderColor = border,
+                                focusedLabelColor = glow,
+                                unfocusedLabelColor = textMuted,
+                                cursorColor = glow,
+                                focusedTextColor = textPrimary,
+                                unfocusedTextColor = textPrimary
+                            )
+                        )
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Button(
+                                onClick = {
+                                    touched = true
+                                    viewModel.search(name, numRange)
+                                },
+                                enabled = !state.loading,
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = glow,
+                                    contentColor = androidx.compose.ui.graphics.Color(0xFF04110A)
+                                )
+                            ) {
+                                if (state.loading) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp,
+                                            color = androidx.compose.ui.graphics.Color(0xFF04110A)
+                                        )
+                                        Spacer(Modifier.padding(horizontal = 6.dp))
+                                        Text("RUNNING", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                    }
+                                } else {
+                                    Text("RUN", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            Button(
+                                onClick = {
+                                    name = ""
+                                    numRange = ""
+                                    touched = false
+                                    viewModel.clearData()
+                                },
+                                enabled = !state.loading,
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = androidx.compose.ui.graphics.Color(0xFF111A2B),
+                                    contentColor = textPrimary
+                                )
+                            ) {
+                                Text("CLEAR", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                             }
                         }
-                    )
-                    
-                    Text(
-                        text = "说明：遍历指定学号范围，用固定姓名匹配",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-            }
-
-            // 进度显示
-            state.progress?.let { (current, total) ->
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = "正在查询...",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Text(
-                            text = "进度: $current / $total",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        
-                        Spacer(modifier = Modifier.height(4.dp))
-                        
-                        LinearProgressIndicator(
-                            progress = current.toFloat() / total.toFloat(),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        
-                        Spacer(modifier = Modifier.height(4.dp))
-                        
-                        Text(
-                            text = "已找到 ${state.data.size} 条记录",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-            }
-
-            // 按钮区
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = { viewModel.search(name, numRange) },
-                    enabled = !state.loading && name.isNotBlank(),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if (state.loading) {
-                        Box(
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(16.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                    } else {
-                        Text("开始查询")
                     }
                 }
 
-                Button(
-                    onClick = { 
-                        name = ""
-                        numRange = ""
-                        viewModel.clearData()
-                    },
-                    enabled = !state.loading,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("重置")
-                }
-            }
+                // Progress panel
+                state.progress?.let { (current, total) ->
+                    val p = if (total > 0) current.toFloat() / total.toFloat() else 0f
 
-            // 结果显示区标题
-            if (state.data.isNotEmpty()) {
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = panel),
+                        border = BorderStroke(1.dp, border),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = glow, strokeWidth = 2.dp)
+                                Text(
+                                    text = "Scanning…",
+                                    color = textPrimary,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                Text(
+                                    text = "${state.data.size} hits",
+                                    color = glow,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
                             Text(
-                                text = "查询结果",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Text(
-                                text = "共 ${state.data.size} 条",
+                                text = "progress: $current / $total",
+                                color = textMuted,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
+                                fontFamily = FontFamily.Monospace
+                            )
+
+                            // ✅ 用 lambda 版本，兼容 Material3 不同版本签名
+                            LinearProgressIndicator(
+                                progress = { p },
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
                 }
-            }
 
-            // 结果列表
-            if (state.data.isEmpty() && !state.loading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                // Empty / Results
+                if (state.data.isEmpty() && !state.loading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "👋",
-                            style = MaterialTheme.typography.displaySmall
-                        )
-                        Text(
-                            text = if (name.isBlank() && numRange.isBlank()) 
-                                "请输入查询条件" 
-                            else 
-                                "暂无数据",
-                            color = MaterialTheme.colorScheme.outline
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("⌁", color = glow, style = MaterialTheme.typography.displaySmall, fontFamily = FontFamily.Monospace)
+                            Text(
+                                text = "No data. 输入参数后点击 RUN。",
+                                color = textMuted,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
                     }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // 先按学生分组（虽然姓名相同，但学号可能不同）
-                    val groupedByStudent = state.data.groupBy { 
-                        "${it.studentName ?: "未知"}-${it.studentNum ?: "未知"}" 
+                } else {
+                    val groupedByStudent = state.data.groupBy {
+                        "${it.studentName ?: "未知"}-${it.studentNum ?: "未知"}"
                     }
-                    
-                    groupedByStudent.forEach { (_, entries) ->
-                        item {
-                            StudentScoreCard(entries)
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        groupedByStudent.forEach { (key, entries) ->
+                            item(key = "student:$key") {
+                                StudentScoreCardHacker(
+                                    entries = entries,
+                                    panel = panel,
+                                    border = border,
+                                    glow = glow,
+                                    textPrimary = textPrimary,
+                                    textMuted = textMuted
+                                )
+                            }
                         }
                     }
                 }
@@ -279,69 +331,89 @@ fun FuzzyQueryScreen(
 }
 
 @Composable
-private fun StudentScoreCard(entries: List<ScoreEntry>) {
+private fun StudentScoreCardHacker(
+    entries: List<ScoreEntry>,
+    panel: androidx.compose.ui.graphics.Color,
+    border: androidx.compose.ui.graphics.Color,
+    glow: androidx.compose.ui.graphics.Color,
+    textPrimary: androidx.compose.ui.graphics.Color,
+    textMuted: androidx.compose.ui.graphics.Color
+) {
+    val first = entries.firstOrNull()
+
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = panel),
+        border = BorderStroke(1.dp, border),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            // 学生基本信息
-            val firstEntry = entries.firstOrNull()
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "👤",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Column {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+
+            // Student header
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("👤", style = MaterialTheme.typography.bodyLarge)
+                Spacer(modifier = Modifier.size(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = firstEntry?.studentName ?: "未知姓名",
+                        text = first?.studentName ?: "未知姓名",
+                        color = textPrimary,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    if (!firstEntry?.studentNum.isNullOrBlank()) {
+                    if (!first?.studentNum.isNullOrBlank()) {
                         Text(
-                            text = "学号: ${firstEntry?.studentNum}",
+                            text = "num=${first?.studentNum}",
+                            color = textMuted,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline
+                            fontFamily = FontFamily.Monospace
                         )
                     }
                 }
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // 按考试分组显示成绩
-            val groupedByExam = entries.groupBy { it.examName ?: "未知考试" }
-            
-            groupedByExam.forEach { (examName, examEntries) ->
-                Column(
-                    modifier = Modifier.padding(vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "📝 $examName",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                    
-                    // 显示该考试的所有科目成绩
-                    examEntries.forEach { entry ->
-                        ScoreItemRow(entry)
-                    }
-                }
-            }
-            
-            // 显示查询时间（如果有）
-            firstEntry?.searchTime?.let { searchTime ->
-                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "查询时间: $searchTime",
+                    text = "HIT",
+                    color = glow,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            val groupedByExam = entries.groupBy { it.examName ?: "未知考试" }
+            groupedByExam.forEach { (examName, examEntries) ->
+                Text(
+                    text = "📌 $examName",
+                    color = glow,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                examEntries.forEach { entry ->
+                    ScoreItemRowHacker(
+                        entry = entry,
+                        textPrimary = textPrimary,
+                        textMuted = textMuted,
+                        glow = glow
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+
+            first?.searchTime?.let { searchTime ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(border)
+                        .height(1.dp)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "t=$searchTime",
+                    color = textMuted,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
+                    fontFamily = FontFamily.Monospace
                 )
             }
         }
@@ -349,20 +421,24 @@ private fun StudentScoreCard(entries: List<ScoreEntry>) {
 }
 
 @Composable
-private fun ScoreItemRow(entry: ScoreEntry) {
+private fun ScoreItemRowHacker(
+    entry: ScoreEntry,
+    textPrimary: androidx.compose.ui.graphics.Color,
+    textMuted: androidx.compose.ui.graphics.Color,
+    glow: androidx.compose.ui.graphics.Color
+) {
+    val course = entry.course.orEmpty()
+    val v = entry.score?.toFloatOrNull()
+    val isRankLike = course.contains("排") || course.contains("排名")
+
     val scoreColor = when {
-        entry.score == null -> MaterialTheme.colorScheme.outline
-        else -> {
-            val scoreValue = entry.score.toFloatOrNull()
-            when {
-                scoreValue == null -> MaterialTheme.colorScheme.outline
-                scoreValue >= 90f -> MaterialTheme.colorScheme.primary
-                scoreValue >= 60f -> MaterialTheme.colorScheme.secondary
-                else -> MaterialTheme.colorScheme.error
-            }
-        }
+        v == null -> textMuted
+        isRankLike -> textPrimary
+        v >= 90f -> glow
+        v >= 60f -> androidx.compose.ui.graphics.Color(0xFF7DD3FC)
+        else -> androidx.compose.ui.graphics.Color(0xFFFF6B6B)
     }
-    
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -371,15 +447,17 @@ private fun ScoreItemRow(entry: ScoreEntry) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = entry.course ?: "未知科目",
+            text = if (course.isBlank()) "科目" else course,
+            color = textPrimary,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f)
         )
         Text(
             text = entry.score ?: "-",
+            color = scoreColor,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = scoreColor
+            fontWeight = FontWeight.ExtraBold,
+            fontFamily = FontFamily.Monospace
         )
     }
 }
