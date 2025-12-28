@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -39,6 +40,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -54,17 +56,19 @@ fun FuzzyQueryScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
-    // Hacker-ish palette (same style as ExactQueryScreen)
-    val bg = androidx.compose.ui.graphics.Color(0xFF070A0F)
-    val panel = androidx.compose.ui.graphics.Color(0xFF0B1220)
-    val border = androidx.compose.ui.graphics.Color(0xFF1B2A41)
-    val glow = androidx.compose.ui.graphics.Color(0xFF00FF88)
-    val textPrimary = androidx.compose.ui.graphics.Color(0xFFE6EEF8)
-    val textMuted = androidx.compose.ui.graphics.Color(0xFF8CA0B3)
+    // Hacker-ish palette
+    val bg = Color(0xFF070A0F)
+    val panel = Color(0xFF0B1220)
+    val border = Color(0xFF1B2A41)
+    val glow = Color(0xFF00FF88)
+    val textPrimary = Color(0xFFE6EEF8)
+    val textMuted = Color(0xFF8CA0B3)
+    val warning = Color(0xFFFFB74D)
 
     var name by rememberSaveable { mutableStateOf("") }
     var numRange by rememberSaveable { mutableStateOf("") }
     var touched by rememberSaveable { mutableStateOf(false) }
+    var threadCount by rememberSaveable { mutableStateOf(state.threadCount) }
 
     if (state.error != null) {
         AlertDialog(
@@ -77,10 +81,25 @@ fun FuzzyQueryScreen(
 
     Surface(modifier = Modifier.fillMaxSize(), color = bg) {
         Scaffold(
-            containerColor = bg,
-            
+            topBar = {
+                TopAppBar(
+                    title = { 
+                        Text("模糊查询 - 并发模式", 
+                              color = textPrimary,
+                              fontFamily = FontFamily.Monospace) 
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) { 
+                            Text("←", color = textPrimary) 
+                        }
+                    },
+                    colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                        containerColor = panel
+                    )
+                )
+            },
+            containerColor = bg
         ) { padding ->
-
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -88,6 +107,69 @@ fun FuzzyQueryScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+
+                // 线程设置面板
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = panel),
+                    border = BorderStroke(1.dp, border),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "并发线程数",
+                                color = glow,
+                                fontFamily = FontFamily.Monospace,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "${threadCount}线程",
+                                color = textPrimary,
+                                fontFamily = FontFamily.Monospace,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        
+                        Slider(
+                            value = threadCount.toFloat(),
+                            onValueChange = { 
+                                threadCount = it.toInt()
+                                viewModel.updateThreadCount(threadCount)
+                            },
+                            valueRange = 1f..32f,
+                            steps = 31,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = androidx.compose.material3.SliderDefaults.colors(
+                                thumbColor = glow,
+                                activeTrackColor = glow,
+                                inactiveTrackColor = border
+                            )
+                        )
+                        
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("1", color = textMuted, fontFamily = FontFamily.Monospace)
+                            Text("推荐: 4-8", color = warning, fontFamily = FontFamily.Monospace)
+                            Text("32", color = textMuted, fontFamily = FontFamily.Monospace)
+                        }
+                        
+                        Text(
+                            text = "提示：更多线程 = 更快查询，但会增加服务器压力",
+                            color = textMuted,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
 
                 // Header panel
                 Card(
@@ -99,7 +181,7 @@ fun FuzzyQueryScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
-                            text = "> 输入姓名 + 学号范围进行匹配",
+                            text = "> 并发查询模式 - 找到结果即停止",
                             color = glow,
                             fontFamily = FontFamily.Monospace,
                             style = MaterialTheme.typography.bodyMedium,
@@ -175,11 +257,11 @@ fun FuzzyQueryScreen(
                                     touched = true
                                     viewModel.search(name, numRange)
                                 },
-                                enabled = !state.loading,
+                                enabled = !state.loading && name.isNotBlank() && numRange.isNotBlank(),
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = glow,
-                                    contentColor = androidx.compose.ui.graphics.Color(0xFF04110A)
+                                    contentColor = Color(0xFF04110A)
                                 )
                             ) {
                                 if (state.loading) {
@@ -187,7 +269,7 @@ fun FuzzyQueryScreen(
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(16.dp),
                                             strokeWidth = 2.dp,
-                                            color = androidx.compose.ui.graphics.Color(0xFF04110A)
+                                            color = Color(0xFF04110A)
                                         )
                                         Spacer(Modifier.padding(horizontal = 6.dp))
                                         Text("RUNNING", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
@@ -197,21 +279,36 @@ fun FuzzyQueryScreen(
                                 }
                             }
 
-                            Button(
-                                onClick = {
-                                    name = ""
-                                    numRange = ""
-                                    touched = false
-                                    viewModel.clearData()
-                                },
-                                enabled = !state.loading,
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = androidx.compose.ui.graphics.Color(0xFF111A2B),
-                                    contentColor = textPrimary
-                                )
-                            ) {
-                                Text("CLEAR", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                            if (state.loading) {
+                                Button(
+                                    onClick = {
+                                        viewModel.cancelSearch()
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFFF6B6B),
+                                        contentColor = Color.White
+                                    )
+                                ) {
+                                    Text("STOP", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                Button(
+                                    onClick = {
+                                        name = ""
+                                        numRange = ""
+                                        touched = false
+                                        viewModel.clearData()
+                                    },
+                                    enabled = !state.loading,
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF111A2B),
+                                        contentColor = textPrimary
+                                    )
+                                ) {
+                                    Text("CLEAR", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
@@ -236,43 +333,76 @@ fun FuzzyQueryScreen(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = glow, strokeWidth = 2.dp)
-                                Text(
-                                    text = "Scanning…",
-                                    color = textPrimary,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                                Spacer(modifier = Modifier.weight(1f))
-                                Text(
-                                    text = "${state.data.size} hits",
-                                    color = glow,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp), 
+                                        color = glow, 
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(Modifier.padding(horizontal = 8.dp))
+                                    Column {
+                                        Text(
+                                            text = "并发扫描中…",
+                                            color = textPrimary,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        Text(
+                                            text = "使用 ${state.threadCount} 线程",
+                                            color = textMuted,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                }
+                                
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = "${state.foundCount} hits",
+                                        color = glow,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (state.foundCount > 0) {
+                                        Text(
+                                            text = "已找到，正在停止...",
+                                            color = warning,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                }
                             }
 
                             Text(
-                                text = "progress: $current / $total",
+                                text = "进度: $current / $total (${(p * 100).toInt()}%)",
                                 color = textMuted,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontFamily = FontFamily.Monospace
                             )
 
-                            // ✅ 用 lambda 版本，兼容 Material3 不同版本签名
                             LinearProgressIndicator(
                                 progress = { p },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                color = if (state.foundCount > 0) warning else glow
+                            )
+                            
+                            Text(
+                                text = "说明：找到结果后会自动停止所有线程",
+                                color = textMuted,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = FontFamily.Monospace
                             )
                         }
                     }
                 }
 
-                // Empty / Results
-                if (state.data.isEmpty() && !state.loading) {
+                // Results
+                if (state.data.isEmpty() && !state.loading && touched) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -283,13 +413,56 @@ fun FuzzyQueryScreen(
                         ) {
                             Text("⌁", color = glow, style = MaterialTheme.typography.displaySmall, fontFamily = FontFamily.Monospace)
                             Text(
-                                text = "No data. 输入参数后点击 RUN。",
+                                text = "No data found.",
                                 color = textMuted,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = "请检查姓名和学号范围",
+                                color = textMuted,
+                                style = MaterialTheme.typography.bodySmall,
                                 fontFamily = FontFamily.Monospace
                             )
                         }
                     }
-                } else {
+                } else if (state.data.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = panel),
+                        border = BorderStroke(1.dp, glow),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "查询结果",
+                                    color = glow,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "共 ${state.data.size} 条记录",
+                                    color = textPrimary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                            Text(
+                                text = "并发扫描完成，已自动停止所有查询线程",
+                                color = textMuted,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
+                    
                     val groupedByStudent = state.data.groupBy {
                         "${it.studentName ?: "未知"}-${it.studentNum ?: "未知"}"
                     }
@@ -317,14 +490,15 @@ fun FuzzyQueryScreen(
     }
 }
 
+// StudentScoreCardHacker 和 ScoreItemRowHacker 函数保持不变（使用你原来的版本）
 @Composable
 private fun StudentScoreCardHacker(
     entries: List<ScoreEntry>,
-    panel: androidx.compose.ui.graphics.Color,
-    border: androidx.compose.ui.graphics.Color,
-    glow: androidx.compose.ui.graphics.Color,
-    textPrimary: androidx.compose.ui.graphics.Color,
-    textMuted: androidx.compose.ui.graphics.Color
+    panel: Color,
+    border: Color,
+    glow: Color,
+    textPrimary: Color,
+    textMuted: Color
 ) {
     val first = entries.firstOrNull()
 
@@ -410,9 +584,9 @@ private fun StudentScoreCardHacker(
 @Composable
 private fun ScoreItemRowHacker(
     entry: ScoreEntry,
-    textPrimary: androidx.compose.ui.graphics.Color,
-    textMuted: androidx.compose.ui.graphics.Color,
-    glow: androidx.compose.ui.graphics.Color
+    textPrimary: Color,
+    textMuted: Color,
+    glow: Color
 ) {
     val course = entry.course.orEmpty()
     val v = entry.score?.toFloatOrNull()
@@ -422,8 +596,8 @@ private fun ScoreItemRowHacker(
         v == null -> textMuted
         isRankLike -> textPrimary
         v >= 90f -> glow
-        v >= 60f -> androidx.compose.ui.graphics.Color(0xFF7DD3FC)
-        else -> androidx.compose.ui.graphics.Color(0xFFFF6B6B)
+        v >= 60f -> Color(0xFF7DD3FC)
+        else -> Color(0xFFFF6B6B)
     }
 
     Row(
