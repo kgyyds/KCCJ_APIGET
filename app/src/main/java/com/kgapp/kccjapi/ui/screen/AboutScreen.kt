@@ -109,9 +109,9 @@ fun AboutScreen(onBack: () -> Unit) {
                         )
 
                         // You can edit these lines freely
-                        MonoLine(label = "nickname", value = "（填写你的昵称）", glow = glow, textPrimary = textPrimary, textMuted = textMuted)
-                        MonoLine(label = "contact", value = "（邮箱/QQ/Telegram 等）", glow = glow, textPrimary = textPrimary, textMuted = textMuted)
-                        MonoLine(label = "repo", value = "git@github.com:kgyyds/KCCJ_APIGET.git", glow = glow, textPrimary = textPrimary, textMuted = textMuted)
+                        MonoLine(label = "作者", value = "Kgyyds", glow = glow, textPrimary = textPrimary, textMuted = textMuted)
+                        MonoLine(label = "联系方式", value = "tg@zhanghaox6", glow = glow, textPrimary = textPrimary, textMuted = textMuted)
+                        MonoLine(label = "项目地址", value = "git@github.com:kgyyds/KCCJ_APIGET.git", glow = glow, textPrimary = textPrimary, textMuted = textMuted)
 
                         Spacer(modifier = Modifier.height(6.dp))
 
@@ -122,7 +122,7 @@ fun AboutScreen(onBack: () -> Unit) {
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "本工具仅用于学习与授权查询。请勿用于未授权的查询/扫描行为；\n数据仅作演示，注意保护个人隐私。",
+                            text = "本项目已经在Github开源，你可以去给我点个star鼓励一下我\n本工具用于非法入侵，快速爆破api获取信息！！！。",
                             color = textMuted,
                             style = MaterialTheme.typography.bodySmall
                         )

@@ -83,24 +83,7 @@ fun FuzzyQueryScreen(
     Surface(modifier = Modifier.fillMaxSize(), color = bg) {
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            "模糊查询 - 并发模式",
-                            color = textPrimary,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Text("←", color = textPrimary)
-                        }
-                    },
-                    colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                        containerColor = panel
-                    )
-                )
-            },
+                
             containerColor = bg
         ) { padding ->
 

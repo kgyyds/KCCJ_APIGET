@@ -94,7 +94,7 @@ fun MenuScreen(
 
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "TIP: 仅用于学习与授权测试，注意保护隐私。",
+                text = "TIP: 仅用于非法入侵",
                 color = textMuted,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(horizontal = 4.dp)
