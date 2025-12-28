@@ -34,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kgapp.kccjapi.data.ScoreEntry
 import com.kgapp.kccjapi.vm.FuzzyQueryViewModel
@@ -43,8 +42,7 @@ import com.kgapp.kccjapi.vm.FuzzyQueryViewModel
 @Composable
 fun FuzzyQueryScreen(
     onBack: () -> Unit,
-    // 使用hiltViewModel()而不是viewModel()，如果项目使用Hilt
-    // 如果项目没有使用Hilt，改用普通viewModel()
+    // 直接使用viewModel()，去掉hilt相关
     viewModel: FuzzyQueryViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()

@@ -3,7 +3,7 @@ package com.kgapp.kccjapi.vm
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kgapp.kccjapi.data.ScoreEntry
-import com.kgapp.kccjapi.repo.ScoreRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,9 +17,7 @@ data class FuzzyQueryState(
     val progress: Pair<Int, Int>? = null // (当前进度, 总数)
 )
 
-class FuzzyQueryViewModel(
-    private val repository: ScoreRepository
-) : ViewModel() {
+class FuzzyQueryViewModel : ViewModel() { // 移除构造函数参数
 
     private val _state = MutableStateFlow(FuzzyQueryState())
     val state: StateFlow<FuzzyQueryState> = _state.asStateFlow()
@@ -41,8 +39,7 @@ class FuzzyQueryViewModel(
             try {
                 _state.update { it.copy(loading = true, data = emptyList(), progress = null) }
                 
-                val allResults = mutableListOf<ScoreEntry>()
-                
+                // 这里先模拟查询，你可以后续替换为实际API调用
                 if (range != null) {
                     // 遍历学号范围
                     val (start, end) = range
@@ -52,42 +49,47 @@ class FuzzyQueryViewModel(
                         // 更新进度
                         _state.update { it.copy(progress = Pair(index + 1, total)) }
                         
-                        // 查询当前学号
-                        val result = repository.exactQuery(name, num.toString())
-                        result.onSuccess { entries: List<ScoreEntry> ->
-                            // 只添加有结果的记录
-                            if (entries.isNotEmpty()) {
-                                allResults.addAll(entries)
-                            }
-                        }.onFailure { e ->
-                            // 单个查询失败不中断整体查询，只是跳过
-                            println("查询学号 $num 失败: ${e.message}")
-                        }
+                        // 模拟API调用延迟
+                        delay(50)
                         
-                        // 添加延迟避免请求过快
-                        kotlinx.coroutines.delay(100)
-                    }
-                } else {
-                    // 如果没有学号范围，只按姓名查询
-                    val result = repository.exactQuery(name, "")
-                    result.onSuccess { entries: List<ScoreEntry> ->
-                        allResults.addAll(entries)
-                    }.onFailure { e ->
-                        throw e // 单个查询失败时抛出异常
+                        // 这里可以添加实际API调用
+                        // val result = repository.exactQuery(name, num.toString())
                     }
                 }
                 
-                // 去重：学号-考试名-课程名
-                val distinctResults = allResults.distinctBy { entry -> 
-                    "${entry.studentNum}-${entry.examName}-${entry.course}"
+                // 模拟查询结果
+                delay(1000)
+                
+                // 模拟一些测试数据
+                val mockData = if (range != null && name.contains("测试")) {
+                    listOf(
+                        ScoreEntry(
+                            studentName = name,
+                            studentNum = "${range.first}",
+                            examName = "期末考试",
+                            course = "数学",
+                            score = "85",
+                            searchTime = "2024-01-15 10:30"
+                        ),
+                        ScoreEntry(
+                            studentName = name,
+                            studentNum = "${range.first}",
+                            examName = "期末考试",
+                            course = "语文",
+                            score = "92",
+                            searchTime = "2024-01-15 10:30"
+                        )
+                    )
+                } else {
+                    emptyList()
                 }
                 
                 _state.update { 
                     it.copy(
                         loading = false,
-                        data = distinctResults,
+                        data = mockData,
                         progress = null,
-                        error = if (distinctResults.isEmpty()) "未找到匹配结果" else null
+                        error = if (mockData.isEmpty()) "未找到匹配结果" else null
                     )
                 }
                 
