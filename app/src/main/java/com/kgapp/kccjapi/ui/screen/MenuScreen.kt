@@ -31,7 +31,7 @@ fun MenuScreen(
         Text("主菜单：选一个功能开干～😺", style = MaterialTheme.typography.bodyMedium)
 
         MenuCard(title = "🎯 精确查询", desc = "输入姓名 + 学号，直接拉成绩列表") { onExact() }
-        MenuCard(title = "🔎 模糊查询", desc = "（出于隐私合规，当前为提示页）") { onFuzzy() }
+        MenuCard(title = "🔎 模糊查询", desc = "1111") { onFuzzy() }
         MenuCard(title = "👤 关于作者", desc = "看看作者是谁（别害羞）") { onAbout() }
     }
 }

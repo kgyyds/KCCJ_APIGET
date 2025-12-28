@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kgapp.kccjapi.data.ScoreEntry
 import com.kgapp.kccjapi.vm.FuzzyQueryViewModel
@@ -42,18 +43,20 @@ import com.kgapp.kccjapi.vm.FuzzyQueryViewModel
 @Composable
 fun FuzzyQueryScreen(
     onBack: () -> Unit,
-    vm: FuzzyQueryViewModel = viewModel()
+    // 使用hiltViewModel()而不是viewModel()，如果项目使用Hilt
+    // 如果项目没有使用Hilt，改用普通viewModel()
+    viewModel: FuzzyQueryViewModel = viewModel()
 ) {
-    val state by vm.state.collectAsState()
+    val state by viewModel.state.collectAsState()
 
     var name by rememberSaveable { mutableStateOf("") }
     var numRange by rememberSaveable { mutableStateOf("") }
 
     if (state.error != null) {
         AlertDialog(
-            onDismissRequest = { vm.clearError() },
+            onDismissRequest = { viewModel.clearError() },
             confirmButton = {
-                Button(onClick = { vm.clearError() }) { Text("确定") }
+                Button(onClick = { viewModel.clearError() }) { Text("确定") }
             },
             title = { Text("提示") },
             text = { Text(state.error ?: "") }
@@ -175,7 +178,7 @@ fun FuzzyQueryScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Button(
-                    onClick = { vm.search(name, numRange) },
+                    onClick = { viewModel.search(name, numRange) },
                     enabled = !state.loading && name.isNotBlank(),
                     modifier = Modifier.weight(1f)
                 ) {
@@ -198,7 +201,7 @@ fun FuzzyQueryScreen(
                     onClick = { 
                         name = ""
                         numRange = ""
-                        vm.clearData()
+                        viewModel.clearData()
                     },
                     enabled = !state.loading,
                     modifier = Modifier.weight(1f)
