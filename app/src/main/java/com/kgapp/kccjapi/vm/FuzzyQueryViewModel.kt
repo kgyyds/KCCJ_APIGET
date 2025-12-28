@@ -105,24 +105,20 @@ class FuzzyQueryViewModel : ViewModel() {
         }
     }
 
-    private fun parseNumRange(rangeStr: String): Pair<Int, Int>? {
-        if (rangeStr.isBlank()) return null
-        
-        val parts = rangeStr.split("-")
-        if (parts.size != 2) return null
-        
-        return try {
-            val start = parts[0].trim().toInt()
-            val end = parts[1].trim().toInt()
-            if (start <= end) {
-                Pair(start, end)
-            } else {
-                null
-            }
-        } catch (e: NumberFormatException) {
-            null
-        }
+private fun parseNumRange(rangeStr: String): Pair<Long, Long>? {
+    if (rangeStr.isBlank()) return null
+
+    val parts = rangeStr.split("-")
+    if (parts.size != 2) return null
+
+    return try {
+        val start = parts[0].trim().toLong()
+        val end = parts[1].trim().toLong()
+        if (start <= end) (start to end) else null
+    } catch (_: NumberFormatException) {
+        null
     }
+}
 
     fun clearError() {
         _state.update { it.copy(error = null) }
