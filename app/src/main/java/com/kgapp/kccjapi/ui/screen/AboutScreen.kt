@@ -44,20 +44,7 @@ fun AboutScreen(onBack: () -> Unit) {
     Surface(modifier = Modifier.fillMaxSize(), color = bg) {
         Scaffold(
             containerColor = bg,
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            "ABOUT",
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) { Text("←", color = glow) }
-                    }
-                )
-            }
+            
         ) { padding ->
 
             Column(
