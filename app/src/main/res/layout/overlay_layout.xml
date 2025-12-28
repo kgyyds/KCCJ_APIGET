@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/overlay_root"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#AA000000"
+    android:padding="8dp">
+
+    <!-- 缩放 / 展开按钮 -->
+    <ImageView
+        android:id="@+id/btn_toggle"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/logo"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <!-- AI 消息列表 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/overlay_recycler"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:visibility="visible" />
+</LinearLayout>
