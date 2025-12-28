@@ -1,134 +1,149 @@
-package com.kgapp.kccjapi.vm
+package com.kgapp.kccjapi.ui.screen
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kgapp.kccjapi.data.ScoreEntry
-import com.kgapp.kccjapi.net.Net
-import com.kgapp.kccjapi.repo.ScoreRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+import com.kgapp.kccjapi.vm.ExactQueryViewModel
 
-data class FuzzyQueryState(
-    val loading: Boolean = false,
-    val error: String? = null,
-    val data: List<ScoreEntry> = emptyList(),
-    val progress: Pair<Int, Int>? = null // (当前进度, 总数)
-)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExactQueryScreen(
+    onBack: () -> Unit,
+    vm: ExactQueryViewModel = viewModel()
+) {
+    val state by vm.state.collectAsState()
 
-class FuzzyQueryViewModel : ViewModel() {
-    private val repo = ScoreRepository(Net.api)  // 按照ExactQueryViewModel的模式初始化
+    var name by rememberSaveable { mutableStateOf("") }
+    var num by rememberSaveable { mutableStateOf("") }
 
-    private val _state = MutableStateFlow(FuzzyQueryState())
-    val state: StateFlow<FuzzyQueryState> = _state.asStateFlow()
+    if (state.error != null) {
+        AlertDialog(
+            onDismissRequest = { vm.clearError() },
+            confirmButton = {
+                Button(onClick = { vm.clearError() }) { Text("好") }
+            },
+            title = { Text("提示") },
+            text = { Text(state.error ?: "") }
+        )
+    }
 
-    fun search(name: String, numRange: String) {
-        if (name.isBlank()) {
-            _state.value = FuzzyQueryState(error = "请填写学生姓名")
-            return
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("精确查询") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Text("←") }
+                }
+            )
         }
-
-        // 解析学号范围
-        val range = parseNumRange(numRange)
-        if (range == null && numRange.isNotBlank()) {
-            _state.value = FuzzyQueryState(error = "学号范围格式错误，请使用如 42000-42999 的格式")
-            return
-        }
-
-        viewModelScope.launch {
-            _state.value = FuzzyQueryState(
-                loading = true,
-                error = null,
-                data = emptyList(),
-                progress = null
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("学生姓名") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
 
-            try {
-                val allResults = mutableListOf<ScoreEntry>()
-                
-                if (range != null) {
-                    // 遍历学号范围
-                    val (start, end) = range
-                    val total = end - start + 1
-                    
-                    for ((index, num) in (start..end).withIndex()) {
-                        // 更新进度
-                        _state.update { it.copy(progress = Pair(index + 1, total)) }
-                        
-                        // 查询当前学号
-                        val result = repo.exactQuery(name, num.toString())
-                        result.onSuccess { list ->
-                            // 只添加有结果的记录
-                            if (list.isNotEmpty()) {
-                                allResults.addAll(list)
-                            }
-                        }.onFailure { e ->
-                            // 单个查询失败不中断整体查询，只是跳过
-                            // 可以记录日志或忽略
+            OutlinedTextField(
+                value = num,
+                onValueChange = { num = it },
+                label = { Text("学生学号") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    onClick = { vm.search(name, num) },
+                    enabled = !state.loading
+                ) {
+                    Text(if (state.loading) "查询中…" else "开始查询")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // 展示：按考试名分组更好读
+            val grouped = state.data.groupBy { it.examName ?: "（未知考试）" }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                grouped.forEach { (exam, list) ->
+                    item {
+                        Text(
+                            text = "📌 $exam",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        if (list.firstOrNull()?.pubDate != null) {
+                            Text(
+                                text = "日期：${list.firstOrNull()?.pubDate}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
-                        
-                        // 添加延迟避免请求过快
-                        kotlinx.coroutines.delay(50)
                     }
-                } else {
-                    // 如果没有学号范围，只按姓名查询
-                    val result = repo.exactQuery(name, "")
-                    result.onSuccess { list ->
-                        allResults.addAll(list)
-                    }.onFailure { e ->
-                        throw e // 单个查询失败时抛出异常
+
+                    items(list) { entry ->
+                        ScoreRow(entry)
                     }
                 }
-                
-                // 去重：学号-考试名-课程名
-                val distinctResults = allResults.distinctBy { entry -> 
-                    "${entry.studentNum}-${entry.examName}-${entry.course}"
-                }
-                
-                _state.value = FuzzyQueryState(
-                    loading = false,
-                    error = if (distinctResults.isEmpty()) "未找到匹配结果" else null,
-                    data = distinctResults,
-                    progress = null
-                )
-                
-            } catch (e: Exception) {
-                _state.value = FuzzyQueryState(
-                    loading = false,
-                    error = "查询失败: ${e.message ?: e.javaClass.simpleName}",
-                    data = emptyList(),
-                    progress = null
-                )
             }
         }
     }
+}
 
-    private fun parseNumRange(rangeStr: String): Pair<Int, Int>? {
-        if (rangeStr.isBlank()) return null
-        
-        val parts = rangeStr.split("-")
-        if (parts.size != 2) return null
-        
-        return try {
-            val start = parts[0].trim().toInt()
-            val end = parts[1].trim().toInt()
-            if (start in 1..999999 && end in 1..999999 && start <= end) {
-                Pair(start, end)
-            } else {
-                null
+@Composable
+private fun ScoreRow(e: ScoreEntry) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = "${e.course ?: "科目"}：${e.score ?: "-"}",
+                style = MaterialTheme.typography.titleMedium
+            )
+            val meta = buildString {
+                if (!e.studentName.isNullOrBlank()) append("👤 ${e.studentName}  ")
+                if (!e.studentNum.isNullOrBlank()) append("🆔 ${e.studentNum}  ")
+                if (!e.searchTime.isNullOrBlank()) append("🕒 ${e.searchTime}")
             }
-        } catch (e: NumberFormatException) {
-            null
+            if (meta.isNotBlank()) {
+                Text(text = meta, style = MaterialTheme.typography.bodySmall)
+            }
         }
-    }
-
-    fun clearError() {
-        _state.update { it.copy(error = null) }
-    }
-
-    fun clearData() {
-        _state.update { it.copy(data = emptyList(), progress = null) }
     }
 }
