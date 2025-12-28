@@ -82,7 +82,7 @@ fun FuzzyQueryScreen(
 
     Surface(modifier = Modifier.fillMaxSize(), color = bg) {
         Scaffold(
-            topBar = {
+            
                 
             containerColor = bg
         ) { padding ->
