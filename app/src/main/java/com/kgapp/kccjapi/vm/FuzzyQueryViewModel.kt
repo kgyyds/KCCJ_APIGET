@@ -106,23 +106,24 @@ class FuzzyQueryViewModel : ViewModel() { // 移除构造函数参数
     }
 
     private fun parseNumRange(rangeStr: String): Pair<Int, Int>? {
-        if (rangeStr.isBlank()) return null
-        
-        val parts = rangeStr.split("-")
-        if (parts.size != 2) return null
-        
-        return try {
-            val start = parts[0].trim().toInt()
-            val end = parts[1].trim().toInt()
-            if (start in 1..999999 && end in 1..999999 && start <= end) {
-                Pair(start, end)
-            } else {
-                null
-            }
-        } catch (e: NumberFormatException) {
+    if (rangeStr.isBlank()) return null
+    
+    val parts = rangeStr.split("-")
+    if (parts.size != 2) return null
+    
+    return try {
+        val start = parts[0].trim().toInt()
+        val end = parts[1].trim().toInt()
+        // 移除不必要的大小限制，只检查start <= end
+        if (start <= end) {
+            Pair(start, end)
+        } else {
             null
         }
+    } catch (e: NumberFormatException) {
+        null
     }
+}
 
     fun clearError() {
         _state.update { it.copy(error = null) }
