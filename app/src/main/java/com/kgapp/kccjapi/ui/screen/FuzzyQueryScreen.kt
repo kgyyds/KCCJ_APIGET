@@ -207,7 +207,7 @@ fun FuzzyQueryScreen(
                 }
             }
 
-            // 结果显示区
+            // 结果显示区标题
             if (state.data.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth()
@@ -349,6 +349,19 @@ private fun StudentScoreCard(entries: List<ScoreEntry>) {
 
 @Composable
 private fun ScoreItemRow(entry: ScoreEntry) {
+    val scoreColor = when {
+        entry.score == null -> MaterialTheme.colorScheme.outline
+        else -> {
+            val scoreValue = entry.score.toFloatOrNull()
+            when {
+                scoreValue == null -> MaterialTheme.colorScheme.outline
+                scoreValue >= 90f -> MaterialTheme.colorScheme.primary
+                scoreValue >= 60f -> MaterialTheme.colorScheme.secondary
+                else -> MaterialTheme.colorScheme.error
+            }
+        }
+    }
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -365,11 +378,7 @@ private fun ScoreItemRow(entry: ScoreEntry) {
             text = entry.score ?: "-",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = when (entry.score?.toFloatOrNull()) {
-                in 90f..100f -> MaterialTheme.colorScheme.primary
-                in 60f..89.9f -> MaterialTheme.colorScheme.secondary
-                else -> MaterialTheme.colorScheme.error
-            }
+            color = scoreColor
         )
     }
 }

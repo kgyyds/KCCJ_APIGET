@@ -3,7 +3,7 @@ package com.kgapp.kccjapi.vm
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kgapp.kccjapi.data.ScoreEntry
-import com.kgapp.kccjapi.repository.ScoreRepository
+import com.kgapp.kccjapi.repo.ScoreRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,14 +54,14 @@ class FuzzyQueryViewModel(
                         
                         // 查询当前学号
                         val result = repository.exactQuery(name, num.toString())
-                        result.onSuccess { entries ->
+                        result.onSuccess { entries: List<ScoreEntry> ->
                             // 只添加有结果的记录
                             if (entries.isNotEmpty()) {
                                 allResults.addAll(entries)
                             }
-                        }.onFailure {
+                        }.onFailure { e ->
                             // 单个查询失败不中断整体查询，只是跳过
-                            println("查询学号 $num 失败: ${it.message}")
+                            println("查询学号 $num 失败: ${e.message}")
                         }
                         
                         // 添加延迟避免请求过快
@@ -70,21 +70,24 @@ class FuzzyQueryViewModel(
                 } else {
                     // 如果没有学号范围，只按姓名查询
                     val result = repository.exactQuery(name, "")
-                    result.onSuccess { entries ->
+                    result.onSuccess { entries: List<ScoreEntry> ->
                         allResults.addAll(entries)
-                    }.onFailure {
-                        throw it // 单个查询失败时抛出异常
+                    }.onFailure { e ->
+                        throw e // 单个查询失败时抛出异常
                     }
+                }
+                
+                // 去重：学号-考试名-课程名
+                val distinctResults = allResults.distinctBy { entry -> 
+                    "${entry.studentNum}-${entry.examName}-${entry.course}"
                 }
                 
                 _state.update { 
                     it.copy(
                         loading = false,
-                        data = allResults.distinctBy { entry -> 
-                            "${entry.studentNum}-${entry.examName}-${entry.course}"
-                        }, // 去重
+                        data = distinctResults,
                         progress = null,
-                        error = if (allResults.isEmpty()) "未找到匹配结果" else null
+                        error = if (distinctResults.isEmpty()) "未找到匹配结果" else null
                     )
                 }
                 
