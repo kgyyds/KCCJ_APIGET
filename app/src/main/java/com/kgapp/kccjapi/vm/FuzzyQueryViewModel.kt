@@ -6,11 +6,10 @@ import com.kgapp.kccjapi.data.ScoreEntry
 import com.kgapp.kccjapi.net.Net
 import com.kgapp.kccjapi.repo.ScoreRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,9 +20,7 @@ import kotlinx.coroutines.supervisorScope
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.min
 
 enum class WorkerStatus { IDLE, RUNNING, SUCCESS, FAIL, STOPPED }
 
@@ -37,7 +34,7 @@ data class WorkerState(
 data class LogLine(
     val ts: String,
     val workerId: Int,
-    val level: String, // "INFO" | "OK" | "ERR"
+    val level: String,
     val message: String
 )
 
@@ -53,6 +50,7 @@ data class FuzzyQueryState(
 )
 
 class FuzzyQueryViewModel : ViewModel() {
+
     private val repo = ScoreRepository(Net.api)
 
     private val _state = MutableStateFlow(FuzzyQueryState(threadCount = 4))
@@ -61,13 +59,14 @@ class FuzzyQueryViewModel : ViewModel() {
     private var searchJob: Job? = null
     private val foundStudent = AtomicBoolean(false)
 
-    private var threadPoolExecutor = Executors.newFixedThreadPool(_state.value.threadCount)
-    private var customDispatcher = threadPoolExecutor.asCoroutineDispatcher()
-
     private val timeFmt = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
-
-    // 日志最多保留多少行（避免内存炸）
     private val maxLogs = 200
+
+    // ✅ 每个 worker 的 UI 更新节流时间（越大越快）
+    private val workerUiIntervalMs = 80L
+
+    // ✅ 进度更新步长（越大越快）
+    private val progressStep = 50
 
     private fun nowTs(): String = timeFmt.format(Date())
 
@@ -80,13 +79,11 @@ class FuzzyQueryViewModel : ViewModel() {
 
     private fun initWorkers(count: Int) {
         _state.update { st ->
-            st.copy(
-                workers = List(count) { idx -> WorkerState(id = idx, status = WorkerStatus.IDLE) }
-            )
+            st.copy(workers = List(count) { idx -> WorkerState(id = idx) })
         }
     }
 
-    private fun setWorker(
+    private fun setWorkerFast(
         workerId: Int,
         status: WorkerStatus? = null,
         currentNum: Long? = null,
@@ -94,26 +91,20 @@ class FuzzyQueryViewModel : ViewModel() {
     ) {
         _state.update { st ->
             if (workerId !in st.workers.indices) return@update st
-            val mutable = st.workers.toMutableList()
-            val old = mutable[workerId]
-            mutable[workerId] = old.copy(
+            val list = st.workers.toMutableList()
+            val old = list[workerId]
+            list[workerId] = old.copy(
                 status = status ?: old.status,
                 currentNum = currentNum ?: old.currentNum,
                 lastMessage = lastMessage ?: old.lastMessage
             )
-            st.copy(workers = mutable)
+            st.copy(workers = list)
         }
     }
 
     fun updateThreadCount(count: Int) {
-        if (count < 1 || count > 32) return
-
+        if (count < 1 || count > 256) return
         cancelSearch()
-
-        threadPoolExecutor.shutdown()
-        threadPoolExecutor = Executors.newFixedThreadPool(count)
-        customDispatcher = threadPoolExecutor.asCoroutineDispatcher()
-
         _state.update { it.copy(threadCount = count) }
         initWorkers(count)
         pushLog(-1, "INFO", "线程数已更新为 $count")
@@ -160,51 +151,47 @@ class FuzzyQueryViewModel : ViewModel() {
         }
         pushLog(-1, "INFO", "开始并发查询 name=$name, range=$start-$end, threads=$tc")
 
+        // ✅ IO 并发：比自建线程池更适合网络任务
+        val io = Dispatchers.IO.limitedParallelism(tc)
+
         searchJob = viewModelScope.launch {
             val allResults = mutableListOf<ScoreEntry>()
 
-            // ✅ 小容量：避免堆积
-            val numberChannel = Channel<Long>(capacity = tc * 2)
-
-            // 进度节流：减少 UI 重组
-            var lastProgressEmit = 0L
-            fun emitProgressThrottled(current: Int) {
-                val now = System.currentTimeMillis()
-                if (now - lastProgressEmit >= 60) { // 约 16fps 的进度刷新
-                    lastProgressEmit = now
-                    _state.update { it.copy(progress = current to total) }
-                }
-            }
+            // 🚀 容量拉大：吞吐更高
+            val numberChannel = Channel<Long>(capacity = tc * 64)
 
             try {
                 supervisorScope {
-                    // workers
+
                     val workers = List(tc) { workerId ->
-                        launch(customDispatcher) {
-                            setWorker(workerId, status = WorkerStatus.IDLE, currentNum = null, lastMessage = "ready")
-                            pushLog(workerId, "INFO", "worker#$workerId ready")
+                        launch(io) {
+                            pushLog(workerId, "INFO", "worker online")
+
+                            var lastUiUpdate = 0L
 
                             while (isActive) {
                                 val num = numberChannel.receiveCatching().getOrNull() ?: break
                                 if (foundStudent.get()) break
 
-                                setWorker(workerId, status = WorkerStatus.RUNNING, currentNum = num, lastMessage = "querying")
-                                // 如果你想更“爽快”看到每个号的日志：打开这行（会刷很多）
-                                // pushLog(workerId, "INFO", "query $num")
+                                // ✅ worker UI 节流
+                                val now = System.currentTimeMillis()
+                                if (now - lastUiUpdate >= workerUiIntervalMs) {
+                                    lastUiUpdate = now
+                                    setWorkerFast(workerId, WorkerStatus.RUNNING, num, "running")
+                                }
 
                                 val list: List<ScoreEntry>? = try {
-                                    val r = repo.exactQuery(name, num.toString())
-                                    r.getOrNull()
+                                    repo.exactQuery(name, num.toString()).getOrNull()
                                 } catch (t: Throwable) {
-                                    setWorker(workerId, status = WorkerStatus.FAIL, currentNum = num, lastMessage = (t.message ?: t.javaClass.simpleName))
-                                    pushLog(workerId, "ERR", "num=$num 失败: ${t.message ?: t.javaClass.simpleName}")
+                                    // 失败也不要狂刷 UI/日志（只记一条）
+                                    setWorkerFast(workerId, WorkerStatus.FAIL, num, "fail")
+                                    pushLog(workerId, "ERR", "num=$num ${t.message ?: t.javaClass.simpleName}")
                                     null
                                 }
 
                                 if (!list.isNullOrEmpty()) {
-                                    // 命中：第一个命中的 worker 负责“占坑 + UI更新 + 停机”
                                     if (foundStudent.compareAndSet(false, true)) {
-                                        setWorker(workerId, status = WorkerStatus.SUCCESS, currentNum = num, lastMessage = "HIT(${list.size})")
+                                        setWorkerFast(workerId, WorkerStatus.SUCCESS, num, "HIT(${list.size})")
                                         pushLog(workerId, "OK", "num=$num 命中 ${list.size} 条 ✅")
 
                                         allResults.addAll(list)
@@ -213,6 +200,7 @@ class FuzzyQueryViewModel : ViewModel() {
                                             "${e.studentNum}-${e.examName}-${e.course}-${e.score}"
                                         }
 
+                                        // ✅ 立即展示结果
                                         _state.update { st ->
                                             st.copy(
                                                 loading = false,
@@ -222,26 +210,18 @@ class FuzzyQueryViewModel : ViewModel() {
                                             )
                                         }
 
-                                        // 停机：关闭 channel + 取消 scope
+                                        // ✅ 立刻停机
                                         numberChannel.close()
                                         this@supervisorScope.cancel(CancellationException("FOUND_RESULT"))
                                     }
-                                } else {
-                                    // 没命中也给个轻量状态
-                                    setWorker(workerId, status = WorkerStatus.IDLE, currentNum = num, lastMessage = "miss")
                                 }
                             }
 
-                            if (!foundStudent.get()) {
-                                setWorker(workerId, status = WorkerStatus.STOPPED, lastMessage = "done")
-                                pushLog(workerId, "INFO", "worker#$workerId done")
-                            } else {
-                                setWorker(workerId, status = WorkerStatus.STOPPED, lastMessage = "stopped")
-                            }
+                            setWorkerFast(workerId, WorkerStatus.STOPPED, lastMessage = if (foundStudent.get()) "stopped" else "done")
                         }
                     }
 
-                    // producer
+                    // producer：全速，不 delay
                     launch {
                         var current = 0
                         for (num in start..end) {
@@ -249,14 +229,14 @@ class FuzzyQueryViewModel : ViewModel() {
                             if (foundStudent.get()) break
 
                             current++
-                            emitProgressThrottled(current)
-                            numberChannel.send(num)
 
-                            // 若觉得“太慢”：保持注释（不 delay）
-                            // 若怕服务器压力：改成 delay(5) / delay(10)
-                            // delay(1)
+                            // ✅ 进度节流：每 50 个更新一次
+                            if (current % progressStep == 0 || current == total) {
+                                _state.update { it.copy(progress = current to total) }
+                            }
+
+                            numberChannel.send(num)
                         }
-                        // 最终进度确保打满一次
                         _state.update { it.copy(progress = total to total) }
                         numberChannel.close()
                     }
@@ -264,31 +244,19 @@ class FuzzyQueryViewModel : ViewModel() {
                     workers.forEach { it.join() }
                 }
 
-                // 没找到
                 if (!foundStudent.get()) {
                     pushLog(-1, "INFO", "扫描结束：未命中")
-                    _state.update {
-                        it.copy(
-                            loading = false,
-                            error = "未找到匹配结果",
-                            data = emptyList(),
-                            foundCount = 0
-                        )
-                    }
+                    _state.update { it.copy(loading = false, error = "未找到匹配结果") }
                 } else {
                     pushLog(-1, "OK", "已命中，全部线程已停止")
                 }
 
             } catch (e: CancellationException) {
-                // ✅ FOUND_RESULT 或用户取消，都不当“失败”
+                // ✅ 不当失败
                 if (foundStudent.get()) {
-                    // 找到结果导致的取消：UI 已更新过
-                    pushLog(-1, "OK", "停止原因：命中结果，已终止所有任务")
-                    _state.update { st -> st.copy(loading = false, error = null) }
+                    _state.update { it.copy(loading = false, error = null) }
                 } else {
-                    // 用户取消
-                    pushLog(-1, "INFO", "停止原因：用户取消")
-                    _state.update { st -> st.copy(loading = false) }
+                    _state.update { it.copy(loading = false) }
                 }
             } catch (e: Exception) {
                 pushLog(-1, "ERR", "查询失败: ${e.message ?: e.javaClass.simpleName}")
@@ -305,7 +273,6 @@ class FuzzyQueryViewModel : ViewModel() {
     }
 
     private fun parseNumRange(rangeStr: String): Pair<Long, Long>? {
-        if (rangeStr.isBlank()) return null
         val parts = rangeStr.split("-")
         if (parts.size != 2) return null
         return try {
@@ -323,9 +290,7 @@ class FuzzyQueryViewModel : ViewModel() {
 
     fun clearData() {
         cancelSearch()
-        _state.value = FuzzyQueryState(threadCount = _state.value.threadCount).copy(
-            workers = List(_state.value.threadCount) { WorkerState(it) }
-        )
+        _state.value = FuzzyQueryState(threadCount = _state.value.threadCount)
     }
 
     fun cancelSearch() {
@@ -337,7 +302,6 @@ class FuzzyQueryViewModel : ViewModel() {
 
     override fun onCleared() {
         cancelSearch()
-        threadPoolExecutor.shutdown()
         super.onCleared()
     }
 }
