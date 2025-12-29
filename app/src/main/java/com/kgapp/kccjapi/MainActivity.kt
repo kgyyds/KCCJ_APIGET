@@ -30,8 +30,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.kgapp.kccjapi.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -60,10 +65,10 @@ class MainActivity : ComponentActivity() {
                     ForcedUpdateGate(
                         currentVersion = BuildConfig.VERSION_NAME,
                         onOpenUpdate = { url ->
-                            // 强制更新：打开链接后直接退出 App（避免用户返回继续用）
                             try {
                                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                            } catch (_: Throwable) {}
+                            } catch (_: Throwable) {
+                            }
                             finish()
                         },
                         content = { AppNav() }
@@ -83,47 +88,31 @@ class MainActivity : ComponentActivity() {
             mutableStateOf<UpdateState>(UpdateState.Checking("正在检查更新…"))
         }
 
-        // 首次进入检查
         LaunchedEffect(Unit) {
             state = UpdateState.Checking("正在检查更新…")
             state = checkUpdate(currentVersion)
         }
 
         when (val s = state) {
-            is UpdateState.Pass -> {
-                content()
-            }
+            is UpdateState.Pass -> content()
 
-            is UpdateState.Checking -> {
-                // 检查时可以先显示 App，也可以挡住。你要“强制更新”通常建议挡住。
-                BlockingDialog(
-                    title = "检查更新",
-                    message = s.message,
-                    buttons = {}
-                )
-            }
+            is UpdateState.Checking -> BlockingDialog(
+                title = "检查更新",
+                message = s.message,
+                buttons = {}
+            )
 
             is UpdateState.NeedUpdate -> {
-                // 强制更新：不可取消
                 BlockingDialog(
                     title = "发现新版本 ${s.latestTag}",
                     message = "当前版本：$currentVersion\n最新版本：${s.latestTag}\n必须更新后才能继续使用。",
                     buttons = {
-                        TextButton(onClick = { state = UpdateState.Checking("正在重试…") }) {
-                            Text("重试")
-                        }
+                        TextButton(onClick = { state = UpdateState.Checking("正在重试…") }) { Text("重试") }
                         SpacerButton()
-                        Button(onClick = { onOpenUpdate(s.url) }) {
-                            Text("去更新")
-                        }
-                    },
-                    onRetry = {
-                        // 触发重试
-                        state = UpdateState.Checking("正在重试…")
+                        Button(onClick = { onOpenUpdate(s.url) }) { Text("去更新") }
                     }
                 )
 
-                // 只要进入 Checking，就执行重试
                 LaunchedEffect(state) {
                     if (state is UpdateState.Checking) {
                         state = checkUpdate(currentVersion)
@@ -132,7 +121,6 @@ class MainActivity : ComponentActivity() {
             }
 
             is UpdateState.CheckFailed -> {
-                // 强制更新模式下：网络失败不给进（否则用户能断网绕过）
                 BlockingDialog(
                     title = "无法检查更新",
                     message = "当前网络无法连接更新服务。\n请检查网络后重试。\n\n原因：${s.reason}",
@@ -156,11 +144,10 @@ class MainActivity : ComponentActivity() {
     private fun BlockingDialog(
         title: String,
         message: String,
-        buttons: @Composable () -> Unit,
-        onRetry: (() -> Unit)? = null
+        buttons: @Composable () -> Unit
     ) {
         AlertDialog(
-            onDismissRequest = { /* 强制：不允许点外面关闭 */ },
+            onDismissRequest = { /* 强制：不允许关闭 */ },
             title = { Text(title) },
             text = { Text(message) },
             confirmButton = { buttons() }
@@ -169,11 +156,7 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun SpacerButton() {
-        // 让两个按钮之间有点空隙，别挤一起
-        androidx.compose.foundation.layout.Spacer(
-            modifier = androidx.compose.ui.Modifier
-                .androidx.compose.foundation.layout.width(8.dp)
-        )
+        Spacer(modifier = Modifier.width(8.dp))
     }
 
     // ====== 更新检查逻辑 ======
@@ -188,27 +171,21 @@ class MainActivity : ComponentActivity() {
     private suspend fun checkUpdate(currentVersion: String): UpdateState = withContext(Dispatchers.IO) {
         val currentNorm = normalizeVersion(currentVersion)
 
-        // 1) 优先：releases/latest（你 action 会创建 release）
         fetchLatestFromRelease()?.let { (tag, url) ->
             val latestNorm = normalizeVersion(tag)
             return@withContext if (isNewer(latestNorm, currentNorm)) {
                 UpdateState.NeedUpdate(latestTag = tag, url = url)
-            } else {
-                UpdateState.Pass
-            }
+            } else UpdateState.Pass
         }
 
-        // 2) 兜底：tags?per_page=1
         fetchLatestFromTags()?.let { (tag, url) ->
             val latestNorm = normalizeVersion(tag)
             return@withContext if (isNewer(latestNorm, currentNorm)) {
                 UpdateState.NeedUpdate(latestTag = tag, url = url)
-            } else {
-                UpdateState.Pass
-            }
+            } else UpdateState.Pass
         }
 
-        UpdateState.CheckFailed("获取版本信息失败（GitHub 可能抽风/被墙/超时）")
+        UpdateState.CheckFailed("获取版本信息失败（GitHub 可能超时/不可达）")
     }
 
     private fun fetchLatestFromRelease(): Pair<String, String>? {
@@ -219,11 +196,8 @@ class MainActivity : ComponentActivity() {
         val tag = json.optString("tag_name", "").trim()
         if (tag.isBlank()) return null
 
-        // 直接用 Release 页面（最适合“去更新”）
         val htmlUrl = json.optString("html_url", "").trim()
-        val jumpUrl = if (htmlUrl.isNotBlank()) htmlUrl
-        else "https://github.com/kgyyds/KCCJ_APIGET/releases"
-
+        val jumpUrl = if (htmlUrl.isNotBlank()) htmlUrl else "https://github.com/kgyyds/KCCJ_APIGET/releases"
         return tag to jumpUrl
     }
 
@@ -246,7 +220,7 @@ class MainActivity : ComponentActivity() {
             val req = Request.Builder()
                 .url(url)
                 .header("Accept", "application/vnd.github+json")
-                .header("User-Agent", "KCCJ_APIGET") // GitHub API 建议带
+                .header("User-Agent", "KCCJ_APIGET")
                 .build()
 
             updateClient.newCall(req).execute().use { resp ->
@@ -258,9 +232,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * 支持：v1.0.6 / 1.0.6 / v1.0.6-beta（忽略后缀）
-     */
     private fun normalizeVersion(v: String): List<Int> {
         val raw = v.trim().removePrefix("v").removePrefix("V")
         val core = raw.split('-', '_', '+').firstOrNull().orEmpty()
