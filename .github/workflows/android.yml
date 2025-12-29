@@ -32,7 +32,19 @@ jobs:
       - name: 设置Gradlew权限
         run: chmod +x gradlew
 
+      # ===== Release 签名：仅 tag 触发时准备 keystore =====
+      - name: 解码Release签名keystore
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          echo "${{ secrets.SIGNING_KEYSTORE_B64 }}" | base64 -d > ${{ github.workspace }}/release.jks
+          ls -l ${{ github.workspace }}/release.jks
+
       - name: 构建APK
+        env:
+          # 仅 Release 构建会用到这些环境变量（Debug 不会用）
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           if [ "${{ github.ref_type }}" = "tag" ]; then
             echo "当前为标签触发，构建Release APK"
@@ -45,8 +57,10 @@ jobs:
       - name: 上传APK到Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: app-apk
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/release/app-release.apk
 
       # tag 才创建 GitHub Release
       - name: 创建Release并上传APK

@@ -15,41 +15,66 @@ android {
         minSdk = 26
         targetSdk = 36
 
-        versionName = "v1.0.2"
-        versionCode = 102
+        versionName = "v1.0.3"
+        versionCode = 103
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // ===== Release 签名配置：CI优先（env + ./release.jks），本地fallback（local.properties）=====
     signingConfigs {
         create("release") {
-            // 读取签名配置（从 local.properties）
-            val keystorePropertiesFile = rootProject.file("local.properties")
-            if (keystorePropertiesFile.exists()) {
-                val props = Properties()
-                keystorePropertiesFile.reader().use {
-                    props.load(it)
-                }
-                
-                val keystorePath = props.getProperty("keystore.path")
-                val keystorePassword = props.getProperty("keystore.password")
-                val keyAliasName = props.getProperty("key.alias")
-                val keyPassword = props.getProperty("key.password")
-                
-                if (!keystorePath.isNullOrBlank() && !keystorePassword.isNullOrBlank() 
-                    && !keyAliasName.isNullOrBlank() && !keyPassword.isNullOrBlank()) {
-                    storeFile = file(keystorePath)
-                    storePassword = keystorePassword
-                    keyAlias = keyAliasName
-                    this.keyPassword = keyPassword
+            var configured = false
+
+            // 1) CI: GitHub Actions 解码到项目根目录的 release.jks + 环境变量密码
+            val envStorePwd = System.getenv("SIGNING_STORE_PASSWORD")
+            val envAlias = System.getenv("SIGNING_KEY_ALIAS")
+            val envKeyPwd = System.getenv("SIGNING_KEY_PASSWORD")
+            val ciJks = rootProject.file("release.jks")
+
+            if (!envStorePwd.isNullOrBlank()
+                && !envAlias.isNullOrBlank()
+                && !envKeyPwd.isNullOrBlank()
+                && ciJks.exists()
+            ) {
+                storeFile = ciJks
+                storePassword = envStorePwd
+                keyAlias = envAlias
+                keyPassword = envKeyPwd
+                configured = true
+            }
+
+            // 2) 本地：local.properties（你原来的方式）
+            if (!configured) {
+                val propsFile = rootProject.file("local.properties")
+                if (propsFile.exists()) {
+                    val props = Properties().apply {
+                        propsFile.reader().use { load(it) }
+                    }
+
+                    val keystorePath = props.getProperty("keystore.path")
+                    val keystorePassword = props.getProperty("keystore.password")
+                    val keyAliasName = props.getProperty("key.alias")
+                    val keyPwd = props.getProperty("key.password")
+
+                    if (!keystorePath.isNullOrBlank()
+                        && !keystorePassword.isNullOrBlank()
+                        && !keyAliasName.isNullOrBlank()
+                        && !keyPwd.isNullOrBlank()
+                    ) {
+                        storeFile = file(keystorePath)
+                        storePassword = keystorePassword
+                        keyAlias = keyAliasName
+                        keyPassword = keyPwd
+                        configured = true
+                    }
                 }
             }
+
+            // 3) 没配置到就直接留空，让 release 构建时报错（避免产出“假release/被debug签名”的APK）
+            // 这样你能第一时间发现签名没喂进去，而不是装不上才怀疑人生
         }
     }
-
-
-
-
 
     buildTypes {
         release {
@@ -58,29 +83,34 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
-            // 只有在签名配置存在时才使用
-            if (signingConfigs.findByName("release")?.storeFile?.exists() == true) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+
+            // ✅ 重点：release 强制使用 release signingConfig（不要 fallback 到 debug）
+            signingConfig = signingConfigs.getByName("release")
+        }
+
+        // debug 不动：默认使用 debug keystore
+        debug {
+            // 你可以留空
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-        
     }
+
     kotlinOptions {
         jvmTarget = "11"
     }
+
     buildFeatures {
         compose = true
         aidl = true
     }
-    }
+}
 
 dependencies {
-    // Compose (如果你已经有 BOM/Material3 就不用重复)
+    // Compose
     implementation(platform("androidx.compose:compose-bom:2024.09.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
@@ -105,10 +135,9 @@ dependencies {
 
     implementation("com.google.android.material:material:1.12.0")
 
-    //toast
-    implementation ("com.github.Spikeysanju:MotionToast:1.4")
-    
+    // toast
+    implementation("com.github.Spikeysanju:MotionToast:1.4")
+
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.activity:activity-compose:1.9.3")
-
 }
