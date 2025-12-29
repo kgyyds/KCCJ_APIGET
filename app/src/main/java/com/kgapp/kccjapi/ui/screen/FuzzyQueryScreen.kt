@@ -146,7 +146,7 @@ fun FuzzyQueryScreen(
                             }
 
                             Text(
-                                "提示：更多线程 = 更快查询，但会增加服务器压力",
+                                "提示：请不要选择过高的线程数量，防止ip被封禁，请选择4-8以内的线程数量",
                                 color = textMuted,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontFamily = FontFamily.Monospace
@@ -166,13 +166,13 @@ fun FuzzyQueryScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
-                                text = "> 并发查询模式 - 找到结果即停止",
+                                text = "> 并发查询模式",
                                 color = glow,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "range 示例：4112440401-4112440410",
+                                text = "range 示例：444411-444500",
                                 color = textMuted,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontFamily = FontFamily.Monospace
@@ -201,12 +201,12 @@ fun FuzzyQueryScreen(
                                 value = numRange,
                                 onValueChange = { numRange = it },
                                 label = { Text("student_num_range", fontFamily = FontFamily.Monospace) },
-                                placeholder = { Text("例如：4112440401-4112440410", color = textMuted) },
+                                placeholder = { Text("例如：444411-444500", color = textMuted) },
                                 singleLine = true,
                                 isError = touched && numRange.isBlank(),
                                 supportingText = {
                                     if (numRange.isNotBlank() && numRange.split("-").size != 2) {
-                                        Text("format: start-end", color = textMuted, fontFamily = FontFamily.Monospace)
+                                        Text("格式: start-end", color = textMuted, fontFamily = FontFamily.Monospace)
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
@@ -337,7 +337,7 @@ fun FuzzyQueryScreen(
                                 )
 
                                 Text(
-                                    text = "说明：找到结果后会自动停止所有查询线程",
+                                    text = "使用协程调用线程池，任意线程获取结果后将通知协程停止全部线程",
                                     color = textMuted,
                                     style = MaterialTheme.typography.bodySmall,
                                     fontFamily = FontFamily.Monospace
@@ -425,9 +425,9 @@ fun FuzzyQueryScreen(
                             if (state.logs.isEmpty()) {
                                 Text("暂无日志", color = textMuted, fontFamily = FontFamily.Monospace)
                             } else {
-                                // 小建议：日志太多时，这里仍然 OK，因为我们限制了 maxLogs=200
+                                
                                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    state.logs.takeLast(200).forEach { line ->
+                                    state.logs.takeLast(50).forEach { line ->
                                         val lc = when (line.level) {
                                             "OK" -> glow
                                             "ERR" -> Color(0xFFFF6B6B)
@@ -501,7 +501,7 @@ fun FuzzyQueryScreen(
                                     )
                                 }
                                 Text(
-                                    text = "扫描完成 ✅（已自动停止所有查询）",
+                                    text = "扫描完成",
                                     color = textMuted,
                                     style = MaterialTheme.typography.bodySmall,
                                     fontFamily = FontFamily.Monospace,
