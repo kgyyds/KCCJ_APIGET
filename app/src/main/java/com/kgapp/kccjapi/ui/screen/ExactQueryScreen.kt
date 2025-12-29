@@ -2,6 +2,7 @@ package com.kgapp.kccjapi.ui.screen
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,14 +23,12 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,7 +42,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kgapp.kccjapi.data.ScoreEntry
+import com.kgapp.kccjapi.vm.ExactHistoryItem
 import com.kgapp.kccjapi.vm.ExactQueryViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +55,7 @@ fun ExactQueryScreen(
     vm: ExactQueryViewModel = viewModel()
 ) {
     val state by vm.state.collectAsState()
+    val history by vm.history.collectAsState()
 
     // Hacker-ish palette
     val bg = androidx.compose.ui.graphics.Color(0xFF070A0F)
@@ -59,10 +64,12 @@ fun ExactQueryScreen(
     val glow = androidx.compose.ui.graphics.Color(0xFF00FF88)
     val textPrimary = androidx.compose.ui.graphics.Color(0xFFE6EEF8)
     val textMuted = androidx.compose.ui.graphics.Color(0xFF8CA0B3)
+    val danger = androidx.compose.ui.graphics.Color(0xFFFF6B6B)
 
     var name by rememberSaveable { mutableStateOf("") }
     var num by rememberSaveable { mutableStateOf("") }
     var touched by rememberSaveable { mutableStateOf(false) }
+    var historyExpanded by rememberSaveable { mutableStateOf(false) }
 
     if (state.error != null) {
         AlertDialog(
@@ -75,8 +82,7 @@ fun ExactQueryScreen(
 
     Surface(modifier = Modifier.fillMaxSize(), color = bg) {
         Scaffold(
-            containerColor = bg,
-            
+            containerColor = bg
         ) { padding ->
 
             Column(
@@ -104,12 +110,32 @@ fun ExactQueryScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "返回数据将按考试分组展示，方便阅读 📚",
+                            text = "成功查询会自动写入 History，点一下就能回填 🧠",
                             color = textMuted,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
+
+                // ===== History (collapsible) =====
+                HistoryCard(
+                    expanded = historyExpanded,
+                    onToggle = { historyExpanded = !historyExpanded },
+                    history = history,
+                    panel = panel,
+                    border = border,
+                    glow = glow,
+                    textPrimary = textPrimary,
+                    textMuted = textMuted,
+                    danger = danger,
+                    onPick = { item ->
+                        name = item.name
+                        num = item.num
+                        touched = false
+                    },
+                    onClear = { vm.clearHistory() },
+                    onRemove = { vm.removeHistory(it) }
+                )
 
                 // Input panel
                 Card(
@@ -180,7 +206,7 @@ fun ExactQueryScreen(
                                             strokeWidth = 2.dp,
                                             color = androidx.compose.ui.graphics.Color(0xFF04110A)
                                         )
-                                        Spacer(Modifier.padding(horizontal = 6.dp))
+                                        Spacer(Modifier.width(6.dp))
                                         Text("RUNNING", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                                     }
                                 } else {
@@ -282,6 +308,162 @@ fun ExactQueryScreen(
 }
 
 @Composable
+private fun HistoryCard(
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    history: List<ExactHistoryItem>,
+    panel: androidx.compose.ui.graphics.Color,
+    border: androidx.compose.ui.graphics.Color,
+    glow: androidx.compose.ui.graphics.Color,
+    textPrimary: androidx.compose.ui.graphics.Color,
+    textMuted: androidx.compose.ui.graphics.Color,
+    danger: androidx.compose.ui.graphics.Color,
+    onPick: (ExactHistoryItem) -> Unit,
+    onClear: () -> Unit,
+    onRemove: (ExactHistoryItem) -> Unit
+) {
+    val mono = FontFamily.Monospace
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = panel),
+        border = BorderStroke(1.dp, border),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle() },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (expanded) "▼ HISTORY" else "▶ HISTORY",
+                    color = glow,
+                    fontFamily = mono,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+
+                if (history.isNotEmpty()) {
+                    Text(
+                        text = "CLEAR",
+                        color = danger,
+                        fontFamily = mono,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clickable { onClear() }
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            if (!expanded) {
+                Text(
+                    text = if (history.isEmpty()) "暂无记录（成功查询后会自动出现）" else "最近 ${history.size} 条（点开可回填）",
+                    color = textMuted,
+                    fontFamily = mono,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                return
+            }
+
+            if (history.isEmpty()) {
+                Text(
+                    text = "暂无记录。先 RUN 一次成功的查询再来～",
+                    color = textMuted,
+                    fontFamily = mono
+                )
+                return
+            }
+
+            // 展开列表
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                history.forEach { item ->
+                    HistoryRow(
+                        item = item,
+                        panel = panel,
+                        border = border,
+                        glow = glow,
+                        textPrimary = textPrimary,
+                        textMuted = textMuted,
+                        danger = danger,
+                        onPick = onPick,
+                        onRemove = onRemove
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryRow(
+    item: ExactHistoryItem,
+    panel: androidx.compose.ui.graphics.Color,
+    border: androidx.compose.ui.graphics.Color,
+    glow: androidx.compose.ui.graphics.Color,
+    textPrimary: androidx.compose.ui.graphics.Color,
+    textMuted: androidx.compose.ui.graphics.Color,
+    danger: androidx.compose.ui.graphics.Color,
+    onPick: (ExactHistoryItem) -> Unit,
+    onRemove: (ExactHistoryItem) -> Unit
+) {
+    val mono = FontFamily.Monospace
+    val time = rememberTimeText(item.lastSuccessAt)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onPick(item) },
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = panel),
+        border = BorderStroke(1.dp, border),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "${item.name}  #${item.num}",
+                    color = textPrimary,
+                    fontFamily = mono,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "DEL",
+                    color = danger,
+                    fontFamily = mono,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .clickable { onRemove(item) }
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
+
+            Text(
+                text = "last_ok: $time",
+                color = textMuted,
+                fontFamily = mono,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+@Composable
+private fun rememberTimeText(ms: Long): String {
+    return try {
+        val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+        fmt.format(Date(ms))
+    } catch (_: Throwable) {
+        "-"
+    }
+}
+
+@Composable
 private fun ScoreRowHacker(
     e: ScoreEntry,
     panel: androidx.compose.ui.graphics.Color,
@@ -298,7 +480,7 @@ private fun ScoreRowHacker(
         v == null -> textMuted
         isRankLike -> textPrimary
         v >= 90f -> glow
-        v >= 60f -> androidx.compose.ui.graphics.Color(0xFF7DD3FC) // 偏冷蓝（可读性好）
+        v >= 60f -> androidx.compose.ui.graphics.Color(0xFF7DD3FC)
         else -> androidx.compose.ui.graphics.Color(0xFFFF6B6B)
     }
 
