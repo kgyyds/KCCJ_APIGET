@@ -81,9 +81,7 @@ fun ExactQueryScreen(
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = bg) {
-        Scaffold(
-            containerColor = bg
-        ) { padding ->
+        Scaffold(containerColor = bg) { padding ->
 
             Column(
                 modifier = Modifier
@@ -101,7 +99,10 @@ fun ExactQueryScreen(
                     border = BorderStroke(1.dp, border),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         Text(
                             text = "> 输入姓名与学号进行精确检索",
                             color = glow,
@@ -117,7 +118,7 @@ fun ExactQueryScreen(
                     }
                 }
 
-                // ===== History (collapsible) =====
+                // History (collapsible)
                 HistoryCard(
                     expanded = historyExpanded,
                     onToggle = { historyExpanded = !historyExpanded },
@@ -207,7 +208,11 @@ fun ExactQueryScreen(
                                             color = androidx.compose.ui.graphics.Color(0xFF04110A)
                                         )
                                         Spacer(Modifier.width(6.dp))
-                                        Text("RUNNING", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            "RUNNING",
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold
+                                        )
                                     }
                                 } else {
                                     Text("RUN", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
@@ -232,72 +237,90 @@ fun ExactQueryScreen(
                     }
                 }
 
-                // Empty / Loading / Results
-                if (state.loading && state.data.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(color = glow)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Fetching…", color = textMuted, fontFamily = FontFamily.Monospace)
-                        }
-                    }
-                    return@Scaffold
-                }
-
+                // ===== Results area: NO return, only branches =====
                 val grouped = state.data.groupBy { it.examName ?: "（未知考试）" }
 
-                if (!state.loading && state.data.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("⌁", color = glow, style = MaterialTheme.typography.displaySmall, fontFamily = FontFamily.Monospace)
-                            Text("No data. 输入参数后点击 RUN。", color = textMuted, fontFamily = FontFamily.Monospace)
+                when {
+                    state.loading && state.data.isEmpty() -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = glow)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Fetching…", color = textMuted, fontFamily = FontFamily.Monospace)
+                            }
                         }
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        grouped.forEach { (exam, list) ->
-                            item(key = "header:$exam") {
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.cardColors(containerColor = panel),
-                                    border = BorderStroke(1.dp, border),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                                ) {
-                                    Column(modifier = Modifier.padding(14.dp)) {
-                                        Text(
-                                            text = "📌 $exam",
-                                            color = textPrimary,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        val date = list.firstOrNull()?.pubDate
-                                        if (!date.isNullOrBlank()) {
+
+                    !state.loading && state.data.isEmpty() -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    "⌁",
+                                    color = glow,
+                                    style = MaterialTheme.typography.displaySmall,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Text(
+                                    "No data. 输入参数后点击 RUN。",
+                                    color = textMuted,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            grouped.forEach { (exam, list) ->
+                                item(key = "header:$exam") {
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = CardDefaults.cardColors(containerColor = panel),
+                                        border = BorderStroke(1.dp, border),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                                    ) {
+                                        Column(modifier = Modifier.padding(14.dp)) {
                                             Text(
-                                                text = "date: $date",
-                                                color = textMuted,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                fontFamily = FontFamily.Monospace
+                                                text = "📌 $exam",
+                                                color = textPrimary,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold
                                             )
+                                            val date = list.firstOrNull()?.pubDate
+                                            if (!date.isNullOrBlank()) {
+                                                Text(
+                                                    text = "date: $date",
+                                                    color = textMuted,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    fontFamily = FontFamily.Monospace
+                                                )
+                                            }
                                         }
                                     }
                                 }
-                            }
 
-                            items(list, key = { e ->
-                                "${e.studentNum}-${e.examName}-${e.course}-${e.score}-${e.searchTime}"
-                            }) { entry ->
-                                ScoreRowHacker(
-                                    e = entry,
-                                    panel = panel,
-                                    border = border,
-                                    glow = glow,
-                                    textPrimary = textPrimary,
-                                    textMuted = textMuted
-                                )
+                                items(
+                                    items = list,
+                                    key = { e ->
+                                        "${e.studentNum}-${e.examName}-${e.course}-${e.score}-${e.searchTime}"
+                                    }
+                                ) { entry ->
+                                    ScoreRowHacker(
+                                        e = entry,
+                                        panel = panel,
+                                        border = border,
+                                        glow = glow,
+                                        textPrimary = textPrimary,
+                                        textMuted = textMuted
+                                    )
+                                }
                             }
                         }
                     }
@@ -331,7 +354,10 @@ private fun HistoryCard(
         border = BorderStroke(1.dp, border),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
 
             Row(
                 modifier = Modifier
@@ -360,6 +386,7 @@ private fun HistoryCard(
                 }
             }
 
+            // ✅ 不使用 return，改为分支渲染
             if (!expanded) {
                 Text(
                     text = if (history.isEmpty()) "暂无记录（成功查询后会自动出现）" else "最近 ${history.size} 条（点开可回填）",
@@ -367,32 +394,29 @@ private fun HistoryCard(
                     fontFamily = mono,
                     style = MaterialTheme.typography.bodySmall
                 )
-                return
-            }
-
-            if (history.isEmpty()) {
-                Text(
-                    text = "暂无记录。先 RUN 一次成功的查询再来～",
-                    color = textMuted,
-                    fontFamily = mono
-                )
-                return
-            }
-
-            // 展开列表
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                history.forEach { item ->
-                    HistoryRow(
-                        item = item,
-                        panel = panel,
-                        border = border,
-                        glow = glow,
-                        textPrimary = textPrimary,
-                        textMuted = textMuted,
-                        danger = danger,
-                        onPick = onPick,
-                        onRemove = onRemove
+            } else {
+                if (history.isEmpty()) {
+                    Text(
+                        text = "暂无记录。先 RUN 一次成功的查询再来～",
+                        color = textMuted,
+                        fontFamily = mono
                     )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        history.forEach { item ->
+                            HistoryRow(
+                                item = item,
+                                panel = panel,
+                                border = border,
+                                glow = glow,
+                                textPrimary = textPrimary,
+                                textMuted = textMuted,
+                                danger = danger,
+                                onPick = onPick,
+                                onRemove = onRemove
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -412,7 +436,7 @@ private fun HistoryRow(
     onRemove: (ExactHistoryItem) -> Unit
 ) {
     val mono = FontFamily.Monospace
-    val time = rememberTimeText(item.lastSuccessAt)
+    val time = formatTime(item.lastSuccessAt)
 
     Card(
         modifier = Modifier
@@ -453,8 +477,7 @@ private fun HistoryRow(
     }
 }
 
-@Composable
-private fun rememberTimeText(ms: Long): String {
+private fun formatTime(ms: Long): String {
     return try {
         val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
         fmt.format(Date(ms))
@@ -513,6 +536,7 @@ private fun ScoreRowHacker(
                 if (!e.studentNum.isNullOrBlank()) append("num=${e.studentNum}  ")
                 if (!e.searchTime.isNullOrBlank()) append("t=${e.searchTime}")
             }
+
             if (meta.isNotBlank()) {
                 Box(
                     modifier = Modifier
