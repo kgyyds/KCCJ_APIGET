@@ -3,6 +3,7 @@ package com.kgapp.kccjUltra.ui.state
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kgapp.kccjUltra.data.repo.ScoreRepository
+import com.kgapp.kccjUltra.data.session.SessionManager
 import com.kgapp.kccjUltra.data.store.UserPreferences
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,18 +52,25 @@ class LoginViewModel(
 
     fun login() {
         val username = _uiState.value.username.trim()
+        val password = _uiState.value.password.trim()
         if (username.isBlank()) {
             _uiState.update { it.copy(errorMessage = "请输入手机号") }
+            return
+        }
+        if (password.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "请输入密码") }
             return
         }
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             runCatching {
+                SessionManager.setSession(password)
                 repository.loadExams(username)
             }.onSuccess {
                 preferences.saveUsername(username)
                 _events.emit(LoginEvent.Success(username))
             }.onFailure { throwable ->
+                SessionManager.clear()
                 _uiState.update { it.copy(errorMessage = throwable.message ?: "登录失败") }
             }
             _uiState.update { it.copy(isLoading = false) }

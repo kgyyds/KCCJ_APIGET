@@ -12,18 +12,15 @@ import androidx.navigation.navArgument
 import com.kgapp.kccjUltra.ScoreApp
 import com.kgapp.kccjUltra.ui.screen.ExamDetailScreen
 import com.kgapp.kccjUltra.ui.screen.ExamListScreen
-import com.kgapp.kccjUltra.ui.screen.HeaderSettingsScreen
 import com.kgapp.kccjUltra.ui.screen.LoginScreen
 import com.kgapp.kccjUltra.ui.screen.StudentDetailScreen
 import com.kgapp.kccjUltra.ui.state.ExamDetailViewModel
 import com.kgapp.kccjUltra.ui.state.ExamListViewModel
-import com.kgapp.kccjUltra.ui.state.HeaderSettingsViewModel
 import com.kgapp.kccjUltra.ui.state.LoginViewModel
 import com.kgapp.kccjUltra.ui.state.ViewModelFactory
 
 sealed class Routes(val route: String) {
     data object Login : Routes("login")
-    data object HeaderSettings : Routes("headers")
     data object ExamList : Routes("exams/{username}") {
         fun create(username: String) = "exams/${username}"
     }
@@ -52,24 +49,11 @@ fun AppNavigation() {
             )
             LoginScreen(
                 viewModel = viewModel,
-                onOpenHeaders = { navController.navigate(Routes.HeaderSettings.route) },
                 onLoginSuccess = { username ->
                     navController.navigate(Routes.ExamList.create(username)) {
                         popUpTo(Routes.Login.route) { inclusive = true }
                     }
                 }
-            )
-        }
-
-        composable(Routes.HeaderSettings.route) {
-            val viewModel: HeaderSettingsViewModel = viewModel(
-                factory = ViewModelFactory {
-                    HeaderSettingsViewModel(preferences)
-                }
-            )
-            HeaderSettingsScreen(
-                viewModel = viewModel,
-                onBack = { navController.popBackStack() }
             )
         }
 
@@ -87,8 +71,7 @@ fun AppNavigation() {
                 viewModel = viewModel,
                 onExamClick = { exam ->
                     navController.navigate(Routes.ExamDetail.create(exam.id, exam.title))
-                },
-                onOpenHeaders = { navController.navigate(Routes.HeaderSettings.route) }
+                }
             )
         }
 

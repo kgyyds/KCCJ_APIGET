@@ -6,6 +6,6 @@ import com.kgapp.kccjUltra.data.store.UserPreferences
 
 class AppContainer(context: Context) {
     val preferences = UserPreferences(context)
-    private val api = NetworkModule.createApi(preferences)
+    private val api = NetworkModule.createApi()
     val repository = ScoreRepository(api)
 }
