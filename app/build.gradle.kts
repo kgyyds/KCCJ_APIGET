@@ -7,16 +7,16 @@ plugins {
 }
 
 android {
-    namespace = "com.kgapp.kccjapi"
+    namespace = "com.kgapp.kccjUltra"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.kgapp.kccjapi"
+        applicationId = "com.kgapp.kccjUltra"
         minSdk = 26
         targetSdk = 36
 
-        versionName = "v1.0.9"
-        versionCode = 109
+        versionName = "2.0.0"
+        versionCode = 200
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -139,6 +139,12 @@ dependencies {
 
     // toast
     implementation("com.github.Spikeysanju:MotionToast:1.4")
+
+    // DataStore
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Gson
+    implementation("com.google.code.gson:gson:2.11.0")
 
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.activity:activity-compose:1.9.3")
