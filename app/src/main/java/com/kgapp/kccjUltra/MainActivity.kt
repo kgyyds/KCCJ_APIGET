@@ -1,10 +1,10 @@
-package com.kgapp.kccjapi
+package com.kgapp.kccjUltra
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import com.kgapp.kccjapi.ui.AppNavigation
-import com.kgapp.kccjapi.ui.theme.KccjTheme
+import com.kgapp.kccjUltra.ui.AppNavigation
+import com.kgapp.kccjUltra.ui.theme.KccjTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
