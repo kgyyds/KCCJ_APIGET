@@ -50,4 +50,24 @@ class ExamDetailViewModel(
     fun consumeError() {
         _uiState.update { it.copy(errorMessage = null) }
     }
+
+    suspend fun updateExamScore(
+        studentName: String,
+        studentNum: String,
+        course: String,
+        score: String
+    ): Boolean {
+        val examId = _uiState.value.examId
+        if (examId.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "考试ID为空") }
+            return false
+        }
+        return repository.updateExamScore(
+            examId = examId,
+            studentName = studentName,
+            studentNum = studentNum,
+            course = course,
+            score = score
+        )
+    }
 }

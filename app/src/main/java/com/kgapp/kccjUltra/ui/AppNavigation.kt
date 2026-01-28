@@ -1,6 +1,7 @@
 package com.kgapp.kccjUltra.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -13,6 +14,7 @@ import com.kgapp.kccjUltra.ui.screen.ExamDetailScreen
 import com.kgapp.kccjUltra.ui.screen.ExamListScreen
 import com.kgapp.kccjUltra.ui.screen.HeaderSettingsScreen
 import com.kgapp.kccjUltra.ui.screen.LoginScreen
+import com.kgapp.kccjUltra.ui.screen.StudentDetailScreen
 import com.kgapp.kccjUltra.ui.state.ExamDetailViewModel
 import com.kgapp.kccjUltra.ui.state.ExamListViewModel
 import com.kgapp.kccjUltra.ui.state.HeaderSettingsViewModel
@@ -27,6 +29,9 @@ sealed class Routes(val route: String) {
     }
     data object ExamDetail : Routes("exam_detail/{examId}/{examName}") {
         fun create(examId: String, examName: String) = "exam_detail/${examId}/${examName}"
+    }
+    data object StudentDetail : Routes("student_detail/{examId}/{studentNum}") {
+        fun create(examId: String, studentNum: String) = "student_detail/${examId}/${studentNum}"
     }
 }
 
@@ -104,6 +109,34 @@ fun AppNavigation() {
             ExamDetailScreen(
                 viewModel = viewModel,
                 examName = examName,
+                onStudentClick = { student ->
+                    navController.navigate(Routes.StudentDetail.create(examId, student.studentNum))
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            Routes.StudentDetail.route,
+            arguments = listOf(
+                navArgument("examId") { type = NavType.StringType },
+                navArgument("studentNum") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val studentNum = backStackEntry.arguments?.getString("studentNum").orEmpty()
+            val parentEntry = remember(backStackEntry) {
+                navController.getBackStackEntry(Routes.ExamDetail.route)
+            }
+            val examId = parentEntry.arguments?.getString("examId").orEmpty()
+            val viewModel: ExamDetailViewModel = viewModel(
+                parentEntry,
+                factory = ViewModelFactory {
+                    ExamDetailViewModel(repository, examId)
+                }
+            )
+            StudentDetailScreen(
+                viewModel = viewModel,
+                studentNum = studentNum,
                 onBack = { navController.popBackStack() }
             )
         }
