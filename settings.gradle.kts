@@ -31,6 +31,6 @@ dependencyResolutionManagement {
 }
 
 
-rootProject.name = "kccjapi"
+rootProject.name = "kccjUltra"
 include(":app")
  

@@ -7,16 +7,16 @@ plugins {
 }
 
 android {
-    namespace = "com.kgapp.kccjapi"
+    namespace = "com.kgapp.kccjUltra"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.kgapp.kccjapi"
+        applicationId = "com.kgapp.kccjUltra"
         minSdk = 26
         targetSdk = 36
 
-        versionName = "v1.0.9"
-        versionCode = 109
+        versionName = "2.0.0"
+        versionCode = 200
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
