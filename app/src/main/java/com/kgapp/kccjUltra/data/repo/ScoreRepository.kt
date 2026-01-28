@@ -43,6 +43,24 @@ class ScoreRepository(private val api: ScoreApi) {
         }
         ExamDetailUi(courses = courses, students = students)
     }
+
+    suspend fun updateExamScore(
+        examId: String,
+        studentName: String,
+        studentNum: String,
+        course: String,
+        score: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            api.updateExamScore(
+                examId = examId,
+                studentName = studentName,
+                studentNum = studentNum,
+                course = course,
+                score = score
+            )
+        }.getOrNull()?.result == "1"
+    }
 }
 
 private fun JsonObject.stringValue(key: String): String {

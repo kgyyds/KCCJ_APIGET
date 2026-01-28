@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -42,6 +43,7 @@ import com.kgapp.kccjUltra.ui.theme.HackerTextSecondary
 fun ExamDetailScreen(
     viewModel: ExamDetailViewModel,
     examName: String,
+    onStudentClick: (StudentScoreUi) -> Unit,
     onBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -100,7 +102,8 @@ fun ExamDetailScreen(
                     StudentRow(
                         student = student,
                         courses = uiState.detail.courses,
-                        scrollState = horizontalScroll
+                        scrollState = horizontalScroll,
+                        onClick = { onStudentClick(student) }
                     )
                 }
             }
@@ -142,7 +145,8 @@ private fun TableHeader(
 private fun StudentRow(
     student: StudentScoreUi,
     courses: List<String>,
-    scrollState: ScrollState
+    scrollState: ScrollState,
+    onClick: () -> Unit
 ) {
     val outline = MaterialTheme.colorScheme.outline
     val border = remember(outline) { androidx.compose.foundation.BorderStroke(1.dp, outline) }
@@ -150,6 +154,7 @@ private fun StudentRow(
         modifier = Modifier
             .fillMaxWidth()
             .border(border, RoundedCornerShape(6.dp))
+            .clickable(onClick = onClick)
             .padding(vertical = 6.dp, horizontal = 8.dp),
         verticalAlignment = Alignment.Top
     ) {
