@@ -108,7 +108,7 @@ fun LoginScreen(
             OutlinedTextField(
                 value = uiState.password,
                 onValueChange = viewModel::onPasswordChange,
-                label = { Text("密码 (JSESSIONID)") },
+                label = { Text("J_session_BASE62安全码") },
                 modifier = Modifier.fillMaxWidth(),
                 visualTransformation = PasswordVisualTransformation(),
                 colors = textFieldColors
