@@ -17,7 +17,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -41,7 +40,6 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel,
-    onOpenHeaders: () -> Unit,
     onLoginSuccess: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -78,11 +76,6 @@ fun LoginScreen(
         topBar = {
             TopAppBar(
                 title = { Text("快查成绩Ultra", color = HackerGreen) },
-                actions = {
-                    TextButton(onClick = onOpenHeaders) {
-                        Text("设置请求头", color = HackerGreen)
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = colorScheme.background,
                     titleContentColor = HackerGreen,
@@ -115,7 +108,7 @@ fun LoginScreen(
             OutlinedTextField(
                 value = uiState.password,
                 onValueChange = viewModel::onPasswordChange,
-                label = { Text("密码") },
+                label = { Text("密码 (JSESSIONID)") },
                 modifier = Modifier.fillMaxWidth(),
                 visualTransformation = PasswordVisualTransformation(),
                 colors = textFieldColors

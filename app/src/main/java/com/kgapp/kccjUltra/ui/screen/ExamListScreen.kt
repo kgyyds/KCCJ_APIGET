@@ -39,8 +39,7 @@ import com.kgapp.kccjUltra.ui.theme.HackerTextSecondary
 @Composable
 fun ExamListScreen(
     viewModel: ExamListViewModel,
-    onExamClick: (ExamUi) -> Unit,
-    onOpenHeaders: () -> Unit
+    onExamClick: (ExamUi) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -60,7 +59,6 @@ fun ExamListScreen(
             TopAppBar(
                 title = { Text("快查成绩Ultra", color = HackerGreen) },
                 actions = {
-                    TextButton(onClick = onOpenHeaders) { Text("请求头", color = HackerGreen) }
                     TextButton(onClick = viewModel::refresh) { Text("刷新", color = HackerGreen) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

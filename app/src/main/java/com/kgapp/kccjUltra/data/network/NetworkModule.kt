@@ -1,7 +1,7 @@
 package com.kgapp.kccjUltra.data.network
 
 import com.kgapp.kccjUltra.data.api.ScoreApi
-import com.kgapp.kccjUltra.data.store.UserPreferences
+import com.kgapp.kccjUltra.data.session.SessionManager
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -11,25 +11,23 @@ import retrofit2.converter.gson.GsonConverterFactory
 object NetworkModule {
     private const val BASE_URL = "https://www.sales1.top/score/web/"
 
-    fun createApi(preferences: UserPreferences): ScoreApi {
+    fun createApi(): ScoreApi {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BASIC
         }
 
-        val headerInterceptor = Interceptor { chain ->
+        val cookieInterceptor = Interceptor { chain ->
             val original = chain.request()
-            val headers = preferences.headersSnapshot()
+            val sessionId = SessionManager.getSession()
             val requestBuilder = original.newBuilder()
-            headers
-                .filter { it.key.isNotBlank() }
-                .forEach { item ->
-                    requestBuilder.addHeader(item.key, item.value)
-                }
+            if (!sessionId.isNullOrBlank()) {
+                requestBuilder.addHeader("Cookie", "JSESSIONID=$sessionId")
+            }
             chain.proceed(requestBuilder.build())
         }
 
         val client = OkHttpClient.Builder()
-            .addInterceptor(headerInterceptor)
+            .addInterceptor(cookieInterceptor)
             .addInterceptor(loggingInterceptor)
             .build()
 
