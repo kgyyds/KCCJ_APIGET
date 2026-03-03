@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,11 +33,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kgapp.kccjUltra.data.model.StudentScoreUi
 import com.kgapp.kccjUltra.ui.state.ExamDetailViewModel
 import com.kgapp.kccjUltra.ui.theme.HackerGreen
 import com.kgapp.kccjUltra.ui.theme.HackerTextSecondary
+
+private val InfoColumnWidth = 120.dp
+private val CourseCellWidth = 88.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -122,20 +127,23 @@ private fun TableHeader(
         modifier = Modifier
             .fillMaxWidth()
             .border(border, RoundedCornerShape(6.dp))
+            .horizontalScroll(scrollState)
             .padding(vertical = 8.dp, horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.width(InfoColumnWidth)) {
             Text("姓名", style = MaterialTheme.typography.bodyMedium, color = HackerGreen)
             Text("学号", style = MaterialTheme.typography.bodyMedium, color = HackerGreen)
             Text("已查", style = MaterialTheme.typography.bodyMedium, color = HackerGreen)
         }
-        Row(
-            modifier = Modifier.horizontalScroll(scrollState),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             courses.forEach { course ->
-                Text(course, style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface)
+                Text(
+                    text = course,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurface,
+                    modifier = Modifier.width(CourseCellWidth)
+                )
             }
         }
     }
@@ -155,23 +163,28 @@ private fun StudentRow(
             .fillMaxWidth()
             .border(border, RoundedCornerShape(6.dp))
             .clickable(onClick = onClick)
+            .horizontalScroll(scrollState)
             .padding(vertical = 6.dp, horizontal = 8.dp),
         verticalAlignment = Alignment.Top
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(student.studentName, style = MaterialTheme.typography.bodyMedium, color = HackerGreen)
+        Column(modifier = Modifier.width(InfoColumnWidth)) {
+            Text(
+                student.studentName,
+                style = MaterialTheme.typography.bodyMedium,
+                color = HackerGreen,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
             Text(student.studentNum, style = MaterialTheme.typography.bodySmall, color = HackerTextSecondary)
             Text("已查：${student.searched}", style = MaterialTheme.typography.bodySmall, color = HackerTextSecondary)
         }
-        Row(
-            modifier = Modifier.horizontalScroll(scrollState),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             courses.forEachIndexed { index, _ ->
                 Text(
                     student.scores.getOrNull(index) ?: "-",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.width(CourseCellWidth)
                 )
             }
         }
